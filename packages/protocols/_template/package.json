@@ -5,6 +5,9 @@
   "description": "CHANGEME: Moss protocol adapter for <Protocol> on Monad",
   "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -15,7 +18,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --sourcemap --clean --target es2022",
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
@@ -24,8 +27,8 @@
     "viem": "^2.54.3"
   },
   "devDependencies": {
-    "tsup": "^8.5.1",
-    "typescript": "~5.9.0",
-    "vitest": "^3.2.6"
+    "typescript": "~6.0.0",
+    "vite": "~7.3.6",
+    "vitest": "^4.1.10"
   }
 }

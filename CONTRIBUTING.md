@@ -22,16 +22,16 @@ pnpm test         # includes live e2e against Monad mainnet (free: nothing is si
 
 Toolchain notes you shouldn't fight:
 
-- **Stage-3 decorators** are lowered by esbuild (tsup/tsx/vitest 3). Don't bump vitest to 4.x until vite's oxc transform lowers decorators, and don't enable `experimentalDecorators`. Background: [ADR 0001](./docs/adr/0001-decorator-authoring-model.md).
-- TypeScript is pinned to 5.9.x until tsup's dts build supports TS 6.
-- **Supply-chain guard**: `pnpm-workspace.yaml` sets `minimumReleaseAge: 1440` — dependency versions younger than one day are rejected at resolution. If you bump a dependency and pnpm refuses a just-published version, that's working as intended; take the previous release or wait a day.
+- **Standard decorators** use the TypeScript 5+ `(value, context)` semantics; `experimentalDecorators` stays disabled. Package builds use TypeScript 6 with an ES2022 target, while tests use Vitest 4 with Vite 7/esbuild and the same target. Do not upgrade to Vite 8 until Oxc can lower standard decorators or an alternative transformer is explicitly adopted and verified. Background: [ADR 0001](./docs/adr/0001-decorator-authoring-model.md).
+- TypeScript is pinned to `~6.0.0`. Published packages are built directly with `tsc` as multi-file ESM and declaration trees; there is no tsup or declaration-bundling step.
+- **Supply-chain guard**: `pnpm-workspace.yaml` sets `minimumReleaseAge: 10080` — dependency versions younger than seven days are rejected at resolution. If pnpm refuses a recently published version, use an older release or wait until the isolation window expires.
 
 ## Pull requests
 
 - Branch from `main`; conventional titles appreciated (`feat(protocols): add curvance supply`).
 - Every PR: motivation, what changed, and evidence (test output; for capabilities, a simulate effects summary).
 - User-facing changes need a changeset: `pnpm changeset`.
-- CI must pass: lint, build, typecheck, tests (including mainnet e2e).
+- CI must pass: lint, build, typecheck, tests (including mainnet e2e), and the packed-package consumer test.
 
 ## Adding a protocol adapter — Definition of Done
 

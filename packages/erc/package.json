@@ -4,6 +4,9 @@
   "description": "Moss interface layer: compiled ERC standard ABIs and address-free generic adapters",
   "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -14,7 +17,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --sourcemap --clean --target es2022",
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "gen:abis": "wagmi generate"
@@ -25,10 +28,10 @@
   },
   "devDependencies": {
     "@wagmi/cli": "^2.10.0",
-    "tsup": "^8.5.1",
     "tsx": "^4.19.0",
-    "typescript": "~5.9.0",
-    "vitest": "^3.2.6",
+    "typescript": "~6.0.0",
+    "vite": "~7.3.6",
+    "vitest": "^4.1.10",
     "@themoss/simulator": "workspace:*"
   }
 }

@@ -11,7 +11,7 @@
 
 ## Checklist
 
-- [ ] `pnpm lint && pnpm typecheck && pnpm build && pnpm test` passes locally
+- [ ] `pnpm lint && pnpm build && pnpm typecheck && pnpm test && pnpm test:package` passes locally
 - [ ] Includes a changeset (`pnpm changeset`) if user-facing
 
 ### For new capabilities (required)

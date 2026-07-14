@@ -8,7 +8,7 @@
 ### M0 仓库脚手架 ✅
 - [x] git init + pnpm monorepo：`packages/core`、`packages/protocols`、`packages/mcp-server`、`examples/`
 - [x] LICENSE（MIT）
-- [x] tsconfig（strict + 标准装饰器）、biome、vitest、tsup、changesets
+- [x] tsconfig（strict + 标准装饰器）、biome、vitest、tsc、changesets
 - [x] CI（GitHub Actions）：lint / build / typecheck / test（build 先于 typecheck：包间类型经 dist 解析）
 - [x] Issue 模板 ×3（bug / feature / protocol_onboarding）+ PR 模板
 
@@ -106,8 +106,8 @@
 - [x] **examples/agent-swap 实盘示例**（7月10日）：Claude Code 子 agent（`.claude/agents/moss-trader.md` + 根 `.mcp.json`，零手工配置）在 Monad Foundry anvil 本地主网 fork 上走完 discover→action→simulate→钱包签名→落链，headless 实跑验收；调研结论：contract.dev 等托管 fork 不支持 geth tracer（simulate 跑不了），monad-anvil 全套支持且 chainId=143
 
 ## 已插旗（工程约束与后续事项）
-- **vitest 固定 3.x**：vite 8 的 oxc 不降级 stage-3 装饰器、V8 也未原生支持（实测）；oxc 支持后再升 4.x（ADR 0001 已记录）
-- **TypeScript 固定 5.9.x**：tsup 的 dts 构建与 TS 6.0 不兼容（baseUrl 废弃报错）
+- **Vitest 4 + Vite 7**：Vite 8 的 Oxc 尚不能降级 standard decorators；支持后或显式验证替代转换器后再升级（ADR 0001）
+- **TypeScript 固定 6.0.x**：直接用 `tsc` 输出多文件 ESM 与声明树，不再使用 tsup
 - Monad `debug_traceCall` 强制 sender 余额校验 → 模拟器预注资（与 eth_simulateV1 validation-off 对齐）
 - `rpc3.monad.xyz` 不开 debug 命名空间，官方入口配置不一致 —— 知会 infra 团队
 - trace 返回的 `gasUsed` 疑似为 gas limit —— 已绕行 `eth_estimateGas`，后续与 client 团队确认

@@ -1,5 +1,14 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,23 +20,6 @@ const pnpmCli = process.env.npm_execpath;
 if (!pnpmCli) {
   throw new Error("run the package consumer through `pnpm test:package`");
 }
-
-const packages = [
-  { name: "@themoss/core", directory: "packages/core", archive: "core.tgz" },
-  { name: "@themoss/erc", directory: "packages/erc", archive: "erc.tgz" },
-  { name: "@themoss/simulator", directory: "packages/simulator", archive: "simulator.tgz" },
-  { name: "@themoss/system", directory: "packages/system", archive: "system.tgz" },
-  {
-    name: "@themoss/protocol-kuru",
-    directory: "packages/protocols/kuru",
-    archive: "protocol-kuru.tgz",
-  },
-  {
-    name: "@themoss/mcp-server",
-    directory: "packages/mcp-server",
-    archive: "mcp-server.tgz",
-  },
-];
 
 function run(command, args, options = {}) {
   execFileSync(command, args, {
@@ -44,6 +36,38 @@ function runPnpm(args, options = {}) {
 function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
 }
+
+function discoverPublishedPackages(directory) {
+  const manifestPath = join(directory, "package.json");
+  if (existsSync(manifestPath)) {
+    const manifest = readJson(manifestPath);
+    if (manifest.private !== true && typeof manifest.name === "string") {
+      return [
+        {
+          name: manifest.name,
+          directory,
+          archive: `${manifest.name.replace(/^@/, "").replaceAll("/", "-")}.tgz`,
+        },
+      ];
+    }
+    return [];
+  }
+
+  return readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .flatMap((entry) => discoverPublishedPackages(join(directory, entry.name)));
+}
+
+const rootManifest = readJson(join(root, "package.json"));
+const packages = discoverPublishedPackages(join(root, "packages")).sort((a, b) =>
+  a.name.localeCompare(b.name),
+);
+const workspaceConfiguration = readFileSync(join(root, "pnpm-workspace.yaml"), "utf8");
+const minimumReleaseAgeMatch = workspaceConfiguration.match(/^minimumReleaseAge:\s*(\d+)\s*$/m);
+if (!minimumReleaseAgeMatch) {
+  throw new Error("pnpm-workspace.yaml must declare minimumReleaseAge");
+}
+const minimumReleaseAge = Number(minimumReleaseAgeMatch[1]);
 
 const typescript = readJson(join(root, "node_modules/typescript/package.json"));
 if (!/^6\.0\./.test(typescript.version)) {
@@ -62,10 +86,7 @@ try {
   const dependencies = {};
   for (const workspacePackage of packages) {
     const archive = join(archives, workspacePackage.archive);
-    runPnpm(["pack", "--out", archive], {
-      cwd: join(root, workspacePackage.directory),
-      stdio: "pipe",
-    });
+    runPnpm(["pack", "--out", archive], { cwd: workspacePackage.directory, stdio: "pipe" });
     dependencies[workspacePackage.name] = `file:${archive}`;
   }
 
@@ -76,7 +97,7 @@ try {
         name: "moss-package-consumer",
         private: true,
         type: "module",
-        packageManager: "pnpm@11.10.0",
+        packageManager: rootManifest.packageManager,
         dependencies,
         devDependencies: {
           "@types/node": nodeTypes.version,
@@ -89,7 +110,7 @@ try {
   );
   writeFileSync(
     join(consumer, "pnpm-workspace.yaml"),
-    `minimumReleaseAge: 10080\noverrides:\n${Object.entries(dependencies)
+    `minimumReleaseAge: ${minimumReleaseAge}\noverrides:\n${Object.entries(dependencies)
       .map(([name, archive]) => `  ${JSON.stringify(name)}: ${JSON.stringify(archive)}`)
       .join("\n")}\n`,
   );

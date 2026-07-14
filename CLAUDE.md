@@ -28,14 +28,16 @@
   step builders (`approveStep`); protocol classes go only to
   `registry.use(manifest)` — never into other protocols.
 - Registries are empty; assembly is explicit via `registry.use(manifest)`.
-- Verify: `pnpm lint` / `pnpm -r build` / `pnpm -r typecheck` / `pnpm -r test`
+- Verify: `pnpm lint` / `pnpm build` / `pnpm typecheck` / `pnpm test` /
+  `pnpm test:package`
   (build precedes typecheck — cross-package types resolve through dist). Tests include live
   Monad mainnet e2e (free: Moss never signs/sends); `MOSS_SKIP_E2E=1` when
   offline; sandboxed/proxied environments need `NODE_USE_ENV_PROXY=1` for
   Node fetch and `HOME=$TMPDIR/forge-home` for forge runs.
-- Toolchain pins (ADR 0001): vitest 3.x (vite 8's oxc can't lower stage-3
-  decorators), TypeScript 5.9 (tsup dts × TS6). Local gitignored `.npmrc`
-  keeps pnpm store in-repo for sandboxed shells.
+- Toolchain pins (ADR 0001): TypeScript 6.0.x builds multi-file ESM and
+  declarations directly with `tsc`; Vitest 4 is paired with Vite 7/esbuild
+  because Vite 8's Oxc cannot lower standard decorators yet. Local gitignored
+  `.npmrc` keeps pnpm store in-repo for sandboxed shells.
 - ABIs are never hand-written (ADR 0007): compiled via forge + @wagmi/cli, or
   vendored via `update:abis` scripts with test-enforced derivation chains.
 - Foundry: `forge init`/`forge install` MUST use `--no-git`; CI fails on any

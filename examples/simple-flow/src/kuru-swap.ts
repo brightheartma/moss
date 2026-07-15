@@ -19,7 +19,7 @@ const simulator = createTraceSimulator(runtime, {
 const quote = await registry.action("kuru", "quote", ACCOUNT, {
   tokenIn: NATIVE,
   tokenOut: USDC_ADDRESS,
-  amount: "1",
+  amountIn: "1",
 });
 if (quote.kind !== "query") throw new Error("expected a Query result");
 console.log("quote", quote.data);
@@ -27,7 +27,7 @@ console.log("quote", quote.data);
 const capability = await registry.action("kuru", "swap", ACCOUNT, {
   tokenIn: NATIVE,
   tokenOut: USDC_ADDRESS,
-  amount: "1",
+  amountIn: "1",
   slippage: 50,
 });
 if (capability.kind !== "capability") throw new Error("expected a Capability");

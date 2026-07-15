@@ -118,7 +118,7 @@ Query example:
   "params": {
     "tokenIn": "native",
     "tokenOut": "0x754704Bc059F8C67012fEd69BC8A327a5aafb603",
-    "amount": "1"
+    "amountIn": "1"
   }
 }
 ```
@@ -171,7 +171,50 @@ Execute one root Capability tree against Monad state and parse each successful t
 }
 ```
 
-Simulation traverses nested Capabilities in depth-first order and carries state forward. The response contains one result per attempted transaction:
+Simulation traverses nested Capabilities in depth-first order and carries state forward. MCP projects the verified Receipt leaves into the small Agent-facing response:
+
+```ts
+type AgentSimulation = {
+  ok: boolean;
+  guidance: string;
+  halted?: { transactionIndex: number; reason: string };
+  results: Array<{
+    protocol: string;
+    method: string;
+    texts: string[];
+    warnings: Warning[];
+  }>;
+};
+```
+
+`texts` contains exactly one entry per Receipt leaf, recursively flattened in the original Change order. For example:
+
+```json
+{
+  "ok": true,
+  "guidance": "Compare every ordered Receipt text with the user's intent before handing transactions to a signer.",
+  "results": [
+    {
+      "protocol": "erc20",
+      "method": "approve",
+      "texts": ["ERC20 Approval: ..."],
+      "warnings": []
+    },
+    {
+      "protocol": "kuru",
+      "method": "swap",
+      "texts": [
+        "ERC20 Transfer: ...",
+        "Trade Event: ...",
+        "Kuru Swap: ..."
+      ],
+      "warnings": []
+    }
+  ]
+}
+```
+
+The MCP wire response deliberately omits transactions, gas, raw Changes, Receipt trees, leaf data, and structured Outcomes; `action` already returned the Capability tree. SDK consumers calling the library Simulator directly retain the complete result:
 
 ```ts
 type TransactionSimulation = {
@@ -187,35 +230,7 @@ type TransactionSimulation = {
 };
 ```
 
-Successful trace evidence becomes ordered Changes:
-
-```ts
-type Change =
-  | { kind: "event"; address: Address; topics: readonly Hex[]; data: Hex }
-  | { kind: "nativeTransfer"; from: Address; to: Address; value: string };
-```
-
-The owning Protocol returns a recursive Receipt:
-
-```ts
-interface Receipt<TOutcome extends JsonSafeValue = JsonSafeValue> {
-  kind: "receipt";
-  outcome: TOutcome;
-  text: string;
-  changes: readonly (ReceiptChange | Receipt<JsonSafeValue>)[];
-}
-
-interface ReceiptChange {
-  kind: "change";
-  change: Change;
-  data: JsonSafeValue;
-  text: string;
-}
-```
-
-Core accepts the Receipt only when its leaves retain every exact input Change object with identical length and order. Nested Receipts may interpret continuous intervals but may not replace evidence.
-
-After a clean simulation, compare structured Outcomes with the user's original operation, assets, amounts, recipients, limits, approvals, and Protocol choice. Receipt text is presentation only.
+Core produces the MCP texts only after the complete recursive Receipt retains every exact input Change object with identical length and order. After a clean simulation, compare every ordered text with the user's original operation, assets, amounts, recipients, limits, approvals, and Protocol choice.
 
 ## Warnings
 

@@ -7,4 +7,4 @@
 "@themoss/mcp-server": minor
 ---
 
-Ship self-describing Protocol registration, Capability trees, ordered Changes, typed Receipts, Kuru multi-market paths, and the matching MCP tools.
+Ship self-describing Protocol registration, Capability trees, ordered Changes, typed SDK Receipts, ordered Agent-facing MCP texts, dynamic Kuru market routing with human token amounts, and the matching MCP tools.

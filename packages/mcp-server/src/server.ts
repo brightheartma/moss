@@ -6,10 +6,11 @@ import {
   type CapabilityNode,
   type MossRuntime,
   type ProtocolSource,
+  type ReceiptResult,
   Registry,
   VERBS,
 } from "@themoss/core";
-import { createTraceSimulator, type Simulator } from "@themoss/simulator";
+import { createTraceSimulator, type SimulateOutcome, type Simulator } from "@themoss/simulator";
 import { z } from "zod";
 
 export interface MossServerOptions {
@@ -58,6 +59,30 @@ function json(data: unknown) {
 function jsonError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   return { content: [{ type: "text" as const, text: `Error: ${message}` }], isError: true };
+}
+
+function receiptTexts(receipt: ReceiptResult): string[] {
+  return receipt.changes.flatMap((entry) =>
+    entry.kind === "change" ? [entry.text] : receiptTexts(entry),
+  );
+}
+
+/** Projects the SDK simulation evidence into the small Agent-facing MCP response. */
+export function toAgentSimulation(outcome: SimulateOutcome) {
+  const ok = !outcome.halted && outcome.results.every((result) => result.warnings.length === 0);
+  return {
+    ok,
+    guidance: ok
+      ? "Compare every ordered Receipt text with the user's intent before handing transactions to a signer."
+      : "Stop. Do not sign; report the warning and failed transaction.",
+    ...(outcome.halted ? { halted: outcome.halted } : {}),
+    results: outcome.results.map(({ protocol, method, receipt, warnings }) => ({
+      protocol,
+      method,
+      texts: receipt ? receiptTexts(receipt) : [],
+      warnings,
+    })),
+  };
 }
 
 /** Creates the four-tool Moss MCP server. It never signs or broadcasts transactions. */
@@ -145,23 +170,14 @@ export function createMossServer(opts: MossServerOptions): {
     {
       title: "Simulate and parse a Capability",
       description:
-        "Execute the Capability tree in depth-first order with debug_traceCall. Each successful transaction returns an exhaustive ordered Receipt. Any warning halts execution and must prevent signing. When there are no warnings, compare every Receipt text and outcome with the user's intent before signing.",
+        "Execute the Capability tree in depth-first order with debug_traceCall. Return each transaction's exhaustive ordered Receipt texts and warnings; the SDK retains full Receipt evidence. Any warning halts execution and must prevent signing.",
       inputSchema: {
         capability: capabilitySchema.describe("Capability tree returned by action"),
       },
     },
     async ({ capability }) => {
       try {
-        const outcome = await simulator.simulate(capability);
-        const ok =
-          !outcome.halted && outcome.results.every((result) => result.warnings.length === 0);
-        return json({
-          ok,
-          guidance: ok
-            ? "Compare every ordered Receipt with the user's intent before handing transactions to a signer."
-            : "Stop. Do not sign; report the warning and failed transaction.",
-          ...outcome,
-        });
+        return json(toAgentSimulation(await simulator.simulate(capability)));
       } catch (error) {
         return jsonError(error);
       }

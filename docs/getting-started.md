@@ -131,14 +131,14 @@ Queries execute immediately and do not produce a Capability:
 const quote = await registry.action("kuru", "quote", ACCOUNT, {
   tokenIn: NATIVE,
   tokenOut: USDC_ADDRESS,
-  amount: "1",
+  amountIn: "1",
 });
 
 if (quote.kind !== "query") throw new Error("expected a Query result");
 console.log("quote", quote.data);
 ```
 
-The amount is a human-readable decimal string. The Kuru Protocol resolves market precision and returns JSON-safe base-unit quantities.
+`amountIn` is a human-readable decimal string. Alternatively, supply only `amountOut` to request a minimum output. Kuru discovers current markets, compares direct and via-MON paths, and returns human-readable quote bounds.
 
 ## 7. Build a Capability tree
 
@@ -148,7 +148,7 @@ Append:
 const result = await registry.action("kuru", "swap", ACCOUNT, {
   tokenIn: NATIVE,
   tokenOut: USDC_ADDRESS,
-  amount: "1",
+  amountIn: "1",
   slippage: 50,
 });
 
@@ -218,7 +218,7 @@ After `pnpm build`, add this server to an MCP client:
 }
 ```
 
-The Agent receives the same four stages as tools: `discover`, `load`, `action`, and `simulate`. A write must pass through simulate after the final action result.
+The Agent receives the same four stages as tools: `discover`, `load`, `action`, and `simulate`. MCP `simulate` returns each transaction's ordered Receipt leaf texts and Warnings; full Receipt evidence remains available through the library API. A write must pass through simulate after the final action result.
 
 Read [MCP tool contracts](./mcp-tools.md) for wire shapes and [Agent safety rules](./agent-skill.md) for the mandatory halt and intent-alignment rules.
 

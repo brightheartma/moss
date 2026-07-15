@@ -11,7 +11,7 @@ Moss turns Monad protocol interactions into Agent-callable Capabilities through 
 
 - **Agents call Protocol-owned operations.** Protocol packages own addresses, ABIs, calldata construction, parameter rules, and Receipt parsing.
 - **Simulation produces evidence.** Each successful transaction yields ordered raw Changes and a structured Receipt that must cover every Change exactly once and in order.
-- **Signing stays separate.** The Agent compares structured Outcomes with the user's request before a wallet sees the unsigned transactions.
+- **Signing stays separate.** MCP Agents compare every ordered Receipt text with the user's request; SDK consumers may use structured Outcomes before a wallet sees the unsigned transactions.
 
 ## Supported Protocols
 
@@ -22,7 +22,7 @@ Moss currently targets Monad mainnet, chain ID `143`.
 | WMON | `@themoss/system` | `wrap`, `unwrap` | `balanceOf` |
 | ERC-20 and native MON | `@themoss/erc` | `transfer`, `approve` | `balanceOf`, `allowance`, `metadata` |
 | ERC-721 | `@themoss/erc` | `transfer` | `ownerOf`, `balanceOf` |
-| Kuru | `@themoss/protocol-kuru` | `swap` | `quote`, `markets` |
+| Kuru | `@themoss/protocol-kuru` | `swap` | `quote` |
 
 ## Quickstart
 
@@ -87,7 +87,7 @@ const simulator = createTraceSimulator(runtime, {
 const result = await registry.action("kuru", "swap", account, {
   tokenIn: NATIVE,
   tokenOut: USDC_ADDRESS,
-  amount: "1",
+  amountIn: "1",
   slippage: 50,
 });
 if (result.kind !== "capability") throw new Error("expected a Capability");
@@ -104,7 +104,7 @@ Every Capability owns one direct unsigned transaction and one named typed Receip
 
 Simulation records successful Events and native MON transfers as immutable Changes in exact execution order. Receipt leaves must retain the original Change objects with identical length and order.
 
-Any revert, trace failure, Receipt failure, or coverage mismatch is a terminal Warning. Receipt text is presentation only; structured Outcomes are the evidence an Agent compares with user intent.
+Any revert, trace failure, Receipt failure, or coverage mismatch is a terminal Warning. The library exposes complete Receipt trees and structured Outcomes; MCP returns only their verified ordered leaf texts and Warnings to Agents.
 
 ## Repository layout
 

@@ -53,6 +53,29 @@ Registered Protocol packages are trusted executable code protected by provenance
 Either an explicit EVM token address or `native`; symbols are not Token references. Fixed official addresses come from the system layer, while dynamic addresses come from chain state.
 _Avoid_: symbol, token registry entry
 
+**Human token amount**:
+A decimal string expressed in a Token reference's display units. A Protocol resolves that Token's decimals and converts the value to chain base units.
+_Avoid_: raw amount, wei amount
+
+**Swap amount side**:
+The single side of a swap whose Human token amount the user fixed: input (`amountIn`) or output (`amountOut`). A swap never accepts an unqualified `amount`, and exactly one side must be fixed.
+_Avoid_: amount, amount mode
+
+**Exact-input swap**:
+A swap whose input Human token amount is fixed. Slippage protection limits how far the minimum acceptable output may fall below the quote.
+
+**Target-output swap**:
+A swap whose minimum output Human token amount is fixed. The Protocol derives an input amount with slippage headroom; execution may return more than the target but never less.
+_Avoid_: exact-output swap
+
+**Best swap path**:
+The better of a direct market and a two-market path through native MON at the same quote point. Exact-input swaps maximize output, Target-output swaps minimize input, and equal quotes prefer the direct path.
+_Avoid_: shortest path, arbitrary multi-hop path
+
+**Market candidate**:
+A dynamic protocol market address returned by that Protocol's discovery source. It is not trusted until its current assets and parameters are verified on-chain.
+_Avoid_: built-in pool, hard-coded market
+
 **Runtime**:
 The Monad-mainnet execution environment supplied when Moss is assembled. Chain identity is its invariant rather than data repeated throughout Protocols and Capability trees.
 _Avoid_: chain map, configurable target chain
@@ -62,7 +85,7 @@ A package exporting one or more self-describing Protocols. Its public Protocol e
 _Avoid_: plugin, extension
 
 **Package boundary**:
-Core owns framework contracts; simulator owns trace mechanics; ERC and concrete Protocol packages own ABI semantics and Receipts; system owns Monad instances; MCP server owns transport. New Protocols affect only their package and the composition root.
+Core owns framework contracts; simulator owns trace mechanics; ERC and concrete Protocol packages own ABI semantics, Receipts, and protocol-exclusive deployment addresses; system owns the shared Monad Runtime and shared asset instances; MCP server owns transport. New Protocols affect only their package and the composition root.
 
 **ABI origin**:
 The provenance tier of an ABI file: `compiled` (from contract source), `explorer` (verified-contract page), or `vendored` (documented third-party source, behavior verified on-chain). Every ABI declares exactly one.
@@ -96,7 +119,7 @@ An immutable Event or native MON transfer from successful execution, kept in exa
 _Avoid_: Outcome, effect summary
 
 **Receipt parser**:
-A pure Protocol method that interprets the ordered Changes of one successful transaction into a Receipt. Its only evidence is those Changes, and it may delegate intervals to other Receipt parsers.
+A pure Protocol method that translates the ordered Changes of one successful transaction into a Receipt. Its only evidence is those Changes: it never reconstructs a planned path or fills gaps from external state, and it may delegate intervals to other Receipt parsers.
 _Avoid_: Event handler, validator
 
 **Receipt**:
@@ -110,7 +133,7 @@ A Receipt leaf that retains the exact input Change object and adds JSON-safe pro
 The recursive structure formed when a Receipt parser delegates a continuous Change interval to another parser. Receipts for separate transactions remain separate.
 
 **Outcome**:
-A JSON-safe structured statement of what a Receipt parser found in simulation evidence. Chain quantities use decimal strings.
+A JSON-safe structured statement of facts directly supported by simulation Changes. Chain quantities use decimal strings.
 _Avoid_: Intent, summary
 
 **discover**:
@@ -123,7 +146,7 @@ MCP tool: fetch the intent, risk, and JSON-safe Parameter declarations for speci
 MCP tool: execute a Query or return a root Capability tree for a write. Assembles only — never signs, never sends.
 
 **simulate**:
-MCP tool: run a Capability tree against chain state and return verified Receipts for its successful transactions. A revert or unprovable Change order stops the remaining flow.
+MCP tool: run a Capability tree against chain state and return each transaction's verified Receipt leaf texts in exact Change order plus any Warnings. The library Simulator retains the complete Changes, Receipt trees, data, and Outcomes for SDK consumers. A revert or unprovable Change order stops the remaining flow.
 
 **Warning**:
 A simulation failure such as a revert, parse failure, uncovered or reordered Change, or missing Outcome. Any Warning halts the flow.
@@ -134,4 +157,4 @@ A simulation failure such as a revert, parse failure, uncovered or reordered Cha
 The agent's structured statement of what the user wants (assets out, assets in, target action) before any protocol is chosen.
 
 **Intent alignment**:
-The Agent's semantic check that Capability parameters and verified Receipt Outcomes match the user's words. A mismatch prevents handoff to a signer.
+The Agent's semantic check that Capability parameters and every ordered Receipt text returned by MCP match the user's words. SDK consumers may perform the same check deterministically with full Receipt Outcomes. A mismatch prevents handoff to a signer.

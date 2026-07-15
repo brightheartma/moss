@@ -20,7 +20,7 @@ const simulator = createTraceSimulator(runtime, {
 const intent = {
   tokenIn: NATIVE,
   tokenOut: USDC_ADDRESS,
-  amount: "1",
+  amountIn: "1",
   slippage: 50,
 } as const;
 
@@ -45,7 +45,7 @@ if (
   outcome.sender.toLowerCase() !== devAccount.address.toLowerCase() ||
   outcome.tokenIn !== intent.tokenIn ||
   outcome.tokenOut.toLowerCase() !== intent.tokenOut.toLowerCase() ||
-  outcome.amountIn !== parseUnits(intent.amount, 18).toString() ||
+  outcome.amountIn !== parseUnits(intent.amountIn, 18).toString() ||
   BigInt(outcome.amountOut) <= 0n
 ) {
   throw new Error("structured Receipt outcome does not match the requested Kuru swap");
@@ -61,7 +61,7 @@ function assertCapabilityParams(value: JsonSafeValue): void {
   if (
     value.tokenIn !== intent.tokenIn ||
     value.tokenOut !== intent.tokenOut ||
-    value.amount !== intent.amount ||
+    value.amountIn !== intent.amountIn ||
     value.slippage !== intent.slippage
   ) {
     throw new Error("Kuru Capability params do not preserve the requested intent");
@@ -70,10 +70,6 @@ function assertCapabilityParams(value: JsonSafeValue): void {
 
 function isTokenRef(value: JsonSafeValue | undefined): value is TokenRef {
   return value === NATIVE || (typeof value === "string" && isAddress(value, { strict: false }));
-}
-
-function isTokenPath(value: JsonSafeValue | undefined): value is readonly TokenRef[] {
-  return Array.isArray(value) && value.every(isTokenRef);
 }
 
 function isJsonRecord(value: JsonSafeValue): value is { readonly [key: string]: JsonSafeValue } {
@@ -92,11 +88,7 @@ function parseKuruSwapOutcome(value: JsonSafeValue): KuruSwapOutcome {
     !isTokenRef(value.tokenIn) ||
     !isTokenRef(value.tokenOut) ||
     typeof value.amountIn !== "string" ||
-    typeof value.amountOut !== "string" ||
-    typeof value.fills !== "number" ||
-    !Number.isInteger(value.fills) ||
-    value.fills < 0 ||
-    !isTokenPath(value.path)
+    typeof value.amountOut !== "string"
   ) {
     throw new Error("Kuru Receipt outcome has an invalid shape");
   }
@@ -108,7 +100,5 @@ function parseKuruSwapOutcome(value: JsonSafeValue): KuruSwapOutcome {
     tokenOut: value.tokenOut,
     amountIn: value.amountIn,
     amountOut: value.amountOut,
-    fills: value.fills,
-    path: value.path,
   };
 }

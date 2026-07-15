@@ -2,6 +2,12 @@
 
 `CONTEXT.md` and the current ADRs define the framework contract. Delete superseded contracts instead of extending them.
 
+Useful contributions include:
+
+1. Protocol packages and new Capabilities or Queries;
+2. runnable tutorials, examples, and documentation;
+3. bug fixes, safety checks, and focused core improvements.
+
 ## Development setup
 
 Requires Node 22 or newer and pnpm 11.
@@ -18,7 +24,7 @@ pnpm test
 
 Toolchain notes you shouldn't fight:
 
-- **Stage-3 decorators** are lowered by esbuild (tsup/tsx/vitest 3). Don't bump vitest to 4.x until vite's oxc transform lowers decorators, and don't enable `experimentalDecorators`. Background: [ADR 0001](./docs/adr/0001-decorator-authoring-model.md).
+- **Stage-3 decorators** are lowered by esbuild (tsup/tsx/vitest 3). Don't bump vitest to 4.x until vite's oxc transform lowers decorators. Don't enable `experimentalDecorators`. See [ADR 0001](./docs/adr/0001-decorator-authoring-model.md).
 - TypeScript is pinned to 5.9.x until tsup's dts build supports TS 6.
 - **Supply-chain guard**: `pnpm-workspace.yaml` sets `minimumReleaseAge: 1440` — dependency versions younger than one day are rejected at resolution.
 

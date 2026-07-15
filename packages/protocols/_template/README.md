@@ -2,6 +2,25 @@
 
 Copy this package when starting a Protocol integration, then replace every `CHANGEME` marker.
 
+## Usage
+
+```bash
+cp -R packages/protocols/_template packages/protocols/myprotocol
+cd packages/protocols/myprotocol
+pnpm install
+```
+
+Set `package.json` name to `@themoss/protocol-myprotocol`. Keep `private: true` while developing; remove it only when the package is ready to publish.
+
+Run checks from the repository root so workspace dependencies are built in order:
+
+```bash
+pnpm build
+pnpm typecheck
+pnpm lint
+MOSS_SKIP_E2E=1 pnpm test
+```
+
 ## Checklist
 
 - [ ] Rename the package and replace all placeholder Protocol metadata.

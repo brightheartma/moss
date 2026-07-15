@@ -2,6 +2,19 @@
 
 One Protocol package owns its ABIs, Capabilities, Queries, declared Protocol dependencies, and Receipt parsers.
 
+## 0. Start from the template
+
+Copy the workspace package instead of creating build and test configuration by hand:
+
+```bash
+cp -R packages/protocols/_template packages/protocols/myprotocol
+pnpm install
+```
+
+Rename the package to `@themoss/protocol-myprotocol`, remove `"private": true` when it is ready to publish, and replace every `CHANGEME` marker.
+
+Keep the template tests running while you replace the example. The package remains part of the workspace, so normal root build, typecheck, lint, and test commands exercise it.
+
 ## 1. Establish ABI and address provenance
 
 Every ABI under `src/abis/` declares one origin:
@@ -111,9 +124,13 @@ swapReceipt(changes: readonly Change[]): Receipt<SwapOutcome> {
 }
 ```
 
-A Receipt parser receives only the immutable ordered Changes for one successful direct transaction. It cannot receive Capability parameters or transaction data and cannot call Runtime, Handle, Query, or RPC. It may call another Protocol's pure Receipt parser for a continuous Change interval and embed the returned Receipt.
+A Receipt parser receives only the immutable ordered Changes for one successful direct transaction. It cannot receive Capability parameters or transaction data and cannot call Runtime, Handle, Query, or RPC.
 
-Parsing strategy belongs to the Protocol: ordinary loops, queues, and branches are allowed. Core provides no grammar engine or semantic matcher. Core only flattens ReceiptChange leaves and checks exact object identity, length, and order against the input.
+It may call another Protocol's pure Receipt parser for a continuous Change interval and embed the returned Receipt.
+
+Parsing strategy belongs to the Protocol: ordinary loops, queues, and branches are allowed. Core provides no grammar engine or semantic matcher.
+
+Core only flattens ReceiptChange leaves and checks exact object identity, length, and order against the input.
 
 Receipt text is presentation. The structured Outcome is authoritative and must use JSON-safe values.
 
@@ -138,3 +155,17 @@ Fixed official Monad constants may be imported from `@themoss/system`. Caller-su
 - Live Monad-mainnet tests verify fixed addresses and run the happy path with zero Warnings.
 
 Run `pnpm build`, then `pnpm typecheck`, lint, and tests before review.
+
+## 8. Document and submit
+
+Document what the Protocol does, supported contracts or markets, parameter units, defaults, important risks, fixed-address sources, and known limitations.
+
+Export the stable `@Protocol` class from the package entry point. Experimental classes remain internal. Add the package module to the selected application's composition root; generic core and simulator code do not change.
+
+Add a changeset for a user-facing package release:
+
+```bash
+pnpm changeset
+```
+
+Open the pull request from a branch based on `main`. Include the live simulation evidence and explain any framework or package-boundary impact. Use the checklist in [CONTRIBUTING.md](../CONTRIBUTING.md).

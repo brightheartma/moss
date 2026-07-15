@@ -1,27 +1,140 @@
-# MCP tool contracts
+# MCP tools reference
 
-The Moss MCP server exposes exactly four tools and never signs or sends.
+The Moss stdio server exposes exactly four tools: `discover`, `load`, `action`, and `simulate`. It builds and verifies unsigned transactions and never signs or sends them.
 
-Its composition root receives one Monad Runtime and the selected Protocol module namespaces. `MOSS_RPC_URL` may choose the endpoint; chain ID is not configurable and must resolve to `143`.
+Build the server before configuring a client:
 
-All values crossing MCP are JSON-safe. Chain quantities use decimal strings.
+```bash
+pnpm build
+```
+
+```jsonc
+{
+  "mcpServers": {
+    "moss": {
+      "command": "node",
+      "args": ["<path-to-moss>/packages/mcp-server/dist/cli.js"],
+      "env": { "MOSS_RPC_URL": "https://rpc.monad.xyz" }
+    }
+  }
+}
+```
+
+The RPC must report Monad mainnet chain ID `143`. All MCP values are JSON-safe; chain quantities in structured data use decimal strings.
 
 ## discover
 
-Find Protocol methods by optional verb, category, or Protocol slug. Results identify the Protocol, method, whether it is a Capability or Query, and enough metadata to choose what to load.
+Find Capabilities and Queries before loading their full calling contracts.
+
+### Input
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `verb` | closed string | no | User operation such as `swap`, `wrap`, `transfer`, or `approve` |
+| `category` | closed string | no | Protocol domain such as `dex`, `token`, or `nft` |
+| `protocol` | string | no | Exact Protocol slug |
+
+```json
+{ "verb": "swap" }
+```
+
+### Output
+
+```ts
+type Coordinate = {
+  protocol: string;
+  method: string;
+  kind: "capability" | "query";
+  verb?: Verb;
+  category: Category;
+  tags: string[];
+  summary: string;
+};
+```
+
+Pass the selected `{ protocol, method }` coordinates to `load`. Do not call `action` from a guessed method name.
 
 ## load
 
-Return intent, risk labels, and the parameter contract for selected coordinates. Every parameter keeps two descriptions:
+Load intent, risk labels, and parameter contracts for one or more coordinates.
 
-- `type`: generated JSON Schema plus a context-free description of representation, units, conversion, constraints, and examples;
-- `description`: the field's purpose in this specific Capability or Query.
+### Input
 
-Zod objects remain inside the process and never cross MCP.
+```json
+{
+  "items": [
+    { "protocol": "kuru", "method": "swap" },
+    { "protocol": "kuru", "method": "quote" }
+  ]
+}
+```
+
+### Output
+
+```ts
+type Stub = {
+  protocol: string;
+  method: string;
+  kind: "capability" | "query";
+  intent: string;
+  verb?: Verb;
+  category: Category;
+  risk: RiskLabel[];
+  tags: string[];
+  params: Record<string, {
+    type: JsonSafeValue;
+    description: string;
+  }>;
+};
+```
+
+Each parameter contains two independent explanations:
+
+- `type` is generated JSON Schema plus the reusable representation, units, constraints, conversion, and examples;
+- `description` explains what the field controls in this Capability or Query.
+
+Read both. For example, a basis-points type explains that `1 bps = 0.01%`; the field description explains that the value limits swap slippage.
 
 ## action
 
-Execute a Query or return one root CapabilityNode for a write. A write result has no independent transaction list.
+Execute a Query or build one root Capability tree.
+
+### Input
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `protocol` | string | yes | Protocol slug returned by `discover` |
+| `method` | string | yes | Method returned by `discover` |
+| `account` | address | yes | Sender of every transaction in the resulting tree |
+| `params` | object | no | Values described by `load`; defaults to `{}` |
+
+Query example:
+
+```json
+{
+  "protocol": "kuru",
+  "method": "quote",
+  "account": "0xcccccccccccccccccccccccccccccccccccccccc",
+  "params": {
+    "tokenIn": "native",
+    "tokenOut": "0x754704Bc059F8C67012fEd69BC8A327a5aafb603",
+    "amount": "1"
+  }
+}
+```
+
+A Query returns immediately:
+
+```ts
+type QueryResult = {
+  kind: "query";
+  protocol: string;
+  method: string;
+  data: JsonSafeValue;
+};
+```
+
+A write returns one recursive Capability:
 
 ```ts
 type CapabilityNode = {
@@ -35,20 +148,62 @@ type CapabilityNode = {
 
 type TransactionNode = {
   kind: "transaction";
-  transaction: UnsignedTx;
+  transaction: {
+    from: Address;
+    to: Address;
+    data: Hex;
+    value: Hex;
+  };
 };
 ```
 
-Each CapabilityNode must contain exactly one direct TransactionNode. Every other child is a nested CapabilityNode with its own direct transaction and Receipt parser. Core validates the tree and derives execution order by depth-first traversal.
+Every Capability has exactly one direct TransactionNode and one Receipt name. Extra transactions belong to nested Capabilities. Never edit or reorder the returned tree; call `action` again when inputs change.
 
 ## simulate
 
-Run one root Capability tree against chained Monad state. Successful transactions return top-level Receipts in transaction execution order.
+Execute one root Capability tree against Monad state and parse each successful transaction.
+
+### Input
+
+```jsonc
+{
+  "capability": { /* exact CapabilityNode returned by action */ }
+}
+```
+
+Simulation traverses nested Capabilities in depth-first order and carries state forward. The response contains one result per attempted transaction:
+
+```ts
+type TransactionSimulation = {
+  protocol: string;
+  method: string;
+  transaction: UnsignedTx;
+  reverted: boolean;
+  revertReason?: string;
+  receipt?: Receipt;
+  changes?: readonly Change[];
+  warnings: Warning[];
+  gas: string | null;
+};
+```
+
+Successful trace evidence becomes ordered Changes:
 
 ```ts
 type Change =
   | { kind: "event"; address: Address; topics: readonly Hex[]; data: Hex }
   | { kind: "nativeTransfer"; from: Address; to: Address; value: string };
+```
+
+The owning Protocol returns a recursive Receipt:
+
+```ts
+interface Receipt<TOutcome extends JsonSafeValue = JsonSafeValue> {
+  kind: "receipt";
+  outcome: TOutcome;
+  text: string;
+  changes: readonly (ReceiptChange | Receipt<JsonSafeValue>)[];
+}
 
 interface ReceiptChange {
   kind: "change";
@@ -56,19 +211,27 @@ interface ReceiptChange {
   data: JsonSafeValue;
   text: string;
 }
-
-interface Receipt<TOutcome extends JsonSafeValue> {
-  kind: "receipt";
-  outcome: TOutcome;
-  text: string;
-  changes: readonly (ReceiptChange | Receipt<JsonSafeValue>)[];
-}
 ```
 
-The simulator extracts every successful Change in provable execution order, invokes the Receipt parser named by the owning Capability, then recursively verifies exact Change object identity, length, and order. Protocol parsers may nest Receipts but may not mutate, replace, duplicate, omit, or reorder evidence.
+Core accepts the Receipt only when its leaves retain every exact input Change object with identical length and order. Nested Receipts may interpret continuous intervals but may not replace evidence.
 
-A reverted transaction returns no Receipt. Earlier Receipts remain available, the response records a terminal Warning and diagnostics, and later transactions do not execute.
+After a clean simulation, compare structured Outcomes with the user's original operation, assets, amounts, recipients, limits, approvals, and Protocol choice. Receipt text is presentation only.
 
 ## Warnings
 
-Warnings include transaction reverts, unavailable or unordered trace evidence, state-chaining failure, Receipt parse failures, missing Outcomes, and incomplete or reordered Change coverage. Every Warning halts the flow; there is no warning-suppression or semantic-matcher stage.
+| Code | Meaning |
+| --- | --- |
+| `REVERTED` | The transaction reverted |
+| `TRACE_FAILED` | The RPC could not produce trace evidence |
+| `CHANGE_ORDER_UNAVAILABLE` | Exact Event/native-transfer ordering could not be proven |
+| `RECEIPT_FAILED` | The Protocol could not parse the Changes into a valid Receipt |
+| `CHANGE_COVERAGE_MISMATCH` | Receipt leaves omitted, duplicated, replaced, or reordered Changes |
+| `STATE_CHAIN_FAILED` | State for a later transaction could not be derived |
+
+Any Warning halts execution. Earlier successful Receipts may remain for diagnosis, but later transactions do not run and nothing may be handed to a signer.
+
+## Endpoint requirements
+
+Simulation needs `debug_traceCall` with call/log evidence, a `prestateTracer` diff, and state overrides. The default `https://rpc.monad.xyz` supports these methods.
+
+When an endpoint lacks required evidence, Moss returns a Warning and stops. It never falls back to approximate ordering or skips Receipt verification. See [ADR 0002](./adr/0002-simulation-via-debug-tracecall.md).

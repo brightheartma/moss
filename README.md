@@ -2,76 +2,151 @@
 
 **English** | [中文](./README.zh-CN.md)
 
-Moss turns complex interactions on Monad into protocol-owned, Agent-callable Capabilities through one flow: `discover → load → action → simulate`. Moss builds and verifies unsigned transactions; it never signs or sends them.
+Moss turns Monad protocol interactions into Agent-callable Capabilities through `discover → load → action → simulate`. It builds and verifies unsigned transactions; it never signs or sends them.
 
 > [!WARNING]
-> Moss is alpha software and has not been audited. Do not use it with production funds.
+> Moss is unaudited alpha software. Do not use it with production funds.
 
-## Framework contract
+## Why Moss
 
-- `discover` finds Capabilities and Queries by protocol coordinates and user-facing semantics.
-- `load` returns intent, risk, and a JSON-safe parameter contract. Reusable value semantics and field-specific descriptions remain separate.
-- `action` executes a Query or returns one root Capability tree for a write.
-- `simulate` executes that tree against Monad state and returns verified Receipts for successful transactions.
+- **Agents call Protocol-owned operations.** Protocol packages own addresses, ABIs, calldata construction, parameter rules, and Receipt parsing.
+- **Simulation produces evidence.** Each successful transaction yields ordered raw Changes and a structured Receipt that must cover every Change exactly once and in order.
+- **Signing stays separate.** The Agent compares structured Outcomes with the user's request before a wallet sees the unsigned transactions.
 
-Every Capability owns exactly one direct unsigned transaction and exactly one typed Receipt parser. Additional transactions belong to nested Capabilities, so core can validate and flatten the whole tree in deterministic depth-first order.
+## Supported Protocols
 
-Simulation records every successful raw Event and native MON transfer in exact execution order. The owning Protocol parses those immutable Changes into a structured Receipt; core accepts the result only when the original Change objects are covered once, in the same order. A revert, parse failure, missing Outcome, reordered Change, or uncovered Change is a Warning, and any Warning stops the flow.
+Moss currently targets Monad mainnet, chain ID `143`.
 
-Receipt text is presentation only. The structured Outcome is what an Agent compares with the user's original request before anything reaches a signer.
+| Protocol | Package | Capabilities | Queries |
+| --- | --- | --- | --- |
+| WMON | `@themoss/system` | `wrap`, `unwrap` | `balanceOf` |
+| ERC-20 and native MON | `@themoss/erc` | `transfer`, `approve` | `balanceOf`, `allowance`, `metadata` |
+| ERC-721 | `@themoss/erc` | `transfer` | `ownerOf`, `balanceOf` |
+| Kuru | `@themoss/protocol-kuru` | `swap` | `quote`, `markets` |
 
-## Protocol composition
+## Quickstart
 
-A Protocol package's registration surface is its top-level self-describing `@Protocol` class exports. The composition root chooses module namespaces; Registry scans those exports, ignores ABIs and helpers, recursively registers declared Protocol dependencies, and injects typed instances without import-time registration.
+Requires Node 22 or newer and pnpm 11. The examples use live Monad state but need no key or funded account because Moss only simulates.
 
-Cross-Protocol writes call an injected Capability and become nested Capability nodes. Cross-Protocol Queries execute directly. Fixed Monad constants live in `@themoss/system`; dynamic token and pool addresses come from chain state. Capability inputs use explicit token addresses or `native`, never symbols.
+```bash
+git clone https://github.com/nishuzumi/moss
+cd moss
+pnpm install
+pnpm build
 
-Moss v1 targets Monad mainnet only. Runtime accepts an RPC endpoint, verifies that it reports chain ID `143`, and rejects every other chain; chain identity is not repeated in Protocol metadata, address constants, or Capability nodes.
+# discover → load → action → simulate a WMON wrap
+pnpm --filter @themoss/example-simple-flow wrap
 
-## Package boundaries
+# quote and simulate a Kuru MON → USDC swap
+pnpm --filter @themoss/example-simple-flow swap
+```
+
+Run the test suite without live RPC calls:
+
+```bash
+MOSS_SKIP_E2E=1 pnpm test
+```
+
+The full tutorial is [Getting started](./docs/getting-started.md). It opens every stage, configures MCP, and finishes by creating a Protocol package.
+
+### Use as an MCP server
+
+Build the repo, then add the stdio server to an MCP client:
+
+```jsonc
+{
+  "mcpServers": {
+    "moss": {
+      "command": "node",
+      "args": ["<path-to-moss>/packages/mcp-server/dist/cli.js"],
+      "env": { "MOSS_RPC_URL": "https://rpc.monad.xyz" }
+    }
+  }
+}
+```
+
+The server exposes exactly `discover`, `load`, `action`, and `simulate`. See [MCP tool contracts](./docs/mcp-tools.md).
+
+### Use as a library
+
+```ts
+import { NATIVE, Registry } from "@themoss/core";
+import * as erc from "@themoss/erc";
+import * as kuru from "@themoss/protocol-kuru";
+import { createTraceSimulator } from "@themoss/simulator";
+import * as system from "@themoss/system";
+import { monadRuntime, USDC_ADDRESS } from "@themoss/system";
+
+const runtime = await monadRuntime();
+const registry = new Registry(runtime).use(system, erc, kuru);
+const account = "0xcccccccccccccccccccccccccccccccccccccccc";
+const simulator = createTraceSimulator(runtime, {
+  receipt: (capability, changes) => registry.parseReceipt(capability, changes),
+});
+
+const result = await registry.action("kuru", "swap", account, {
+  tokenIn: NATIVE,
+  tokenOut: USDC_ADDRESS,
+  amount: "1",
+  slippage: 50,
+});
+if (result.kind !== "capability") throw new Error("expected a Capability");
+
+const simulation = await simulator.simulate(result);
+if (simulation.halted || simulation.results.some((item) => item.warnings.length)) {
+  throw new Error("simulation failed; do not sign");
+}
+```
+
+## How verification works
+
+Every Capability owns one direct unsigned transaction and one named typed Receipt parser. Additional transactions belong to nested Capabilities, which core validates and flattens in deterministic depth-first order.
+
+Simulation records successful Events and native MON transfers as immutable Changes in exact execution order. Receipt leaves must retain the original Change objects with identical length and order.
+
+Any revert, trace failure, Receipt failure, or coverage mismatch is a terminal Warning. Receipt text is presentation only; structured Outcomes are the evidence an Agent compares with user intent.
+
+## Repository layout
 
 | Package | Responsibility |
 | --- | --- |
-| `@themoss/core` | Decorators, Registry, framework types, Capability-tree and Receipt validation |
-| `@themoss/simulator` | `debug_traceCall`, state chaining, ordered Change extraction, Receipt dispatch |
-| `@themoss/erc` | Address-free standard ABIs, ERC Protocols, and ERC Receipt semantics |
-| `@themoss/system` | Monad Runtime, verified official constants, and Monad system Protocols |
-| `@themoss/protocol-*` | Protocol ABIs, Capabilities, Queries, dependencies, and Receipts |
-| `@themoss/mcp-server` | MCP transport and application composition only |
-
-Adding a Protocol changes its package and the explicit composition root, not core, simulator, or the generic MCP server.
+| `@themoss/core` | Decorators, Registry, parameter contracts, Capability trees, Receipt validation |
+| `@themoss/simulator` | `debug_traceCall`, state chaining, ordered Change extraction |
+| `@themoss/erc` | Address-free ERC Protocols, ABIs, and Receipt semantics |
+| `@themoss/system` | Monad Runtime, official constants, and system Protocols |
+| `@themoss/protocol-*` | Protocol-specific ABIs, Capabilities, Queries, and Receipts |
+| `@themoss/mcp-server` | MCP transport and application composition |
 
 ## Development
 
-Requires Node 22 or newer and pnpm 11.
-
 ```bash
-pnpm install
 pnpm build
 pnpm typecheck
 pnpm lint
 pnpm test
 ```
 
-Runnable examples:
-
-- `pnpm --filter @themoss/example-simple-flow wrap`
-- `pnpm --filter @themoss/example-simple-flow swap`
-- [`examples/agent-swap`](./examples/agent-swap) for a separate Agent/signer flow on a local Monad fork
+Build must precede typecheck because workspace packages resolve generated declarations. Use `MOSS_SKIP_E2E=1 pnpm test` when offline.
 
 ## Documentation
 
-- [Getting started](./docs/getting-started.md) ([中文](./docs/getting-started.zh-CN.md))
-- [MCP tool contracts](./docs/mcp-tools.md)
-- [Protocol onboarding](./docs/protocol-onboarding.md)
-- [Agent safety rules](./docs/agent-skill.md)
-- [Architecture decisions](./docs/adr/)
-- [Domain language](./CONTEXT.md)
-- [Security model](./SECURITY.md)
+| Guide | Purpose |
+| --- | --- |
+| [Getting started](./docs/getting-started.md) ([中文](./docs/getting-started.zh-CN.md)) | Run and develop with Moss step by step |
+| [MCP tool contracts](./docs/mcp-tools.md) | Inputs and outputs of the four MCP tools |
+| [Protocol onboarding](./docs/protocol-onboarding.md) | Build and submit a Protocol package |
+| [Agent safety rules](./docs/agent-skill.md) | Mandatory simulation and intent-alignment rules |
+| [Agent swap example](./examples/agent-swap/README.md) | Separate Agent and signer on a local Monad fork |
+| [Architecture decisions](./docs/adr/) | Current design decisions and trade-offs |
+| [Domain language](./CONTEXT.md) | Shared framework vocabulary |
 
 ## Contributing
 
-Read [CONTRIBUTING.md](./CONTRIBUTING.md) and the current ADRs before changing an exported contract. Protocol additions start from [`packages/protocols/_template`](./packages/protocols/_template).
+Read [CONTRIBUTING.md](./CONTRIBUTING.md). Protocol additions start from [`packages/protocols/_template`](./packages/protocols/_template) and follow [Protocol onboarding](./docs/protocol-onboarding.md).
+
+## Security
+
+Read [SECURITY.md](./SECURITY.md) for guarantees, limits, and private vulnerability reporting.
 
 ## License
 

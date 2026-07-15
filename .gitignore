@@ -13,3 +13,4 @@ coverage/
 .claude/*
 !.claude/agents/
 /docs/research/
+/.agents/

@@ -19,7 +19,16 @@
   colocated `types.ts`. Keep types derived directly from a runtime schema beside
   that schema instead of creating a reverse dependency from `types.ts`.
 
-## PR review rules
+## Review guidelines
+
+- Review against the accepted architecture, not the diff in isolation. Read
+  `CONTEXT.md` and every ADR relevant to the changed area under `docs/adr/`;
+  treat their vocabulary, ownership boundaries, and decisions as requirements.
+- Reject changes that silently contradict a current ADR or reintroduce a
+  superseded design. An intentional architecture change must update
+  `CONTEXT.md`, replace the affected ADR, remove decisions that are no longer
+  useful, and keep public docs, the glossary, Agent rules, and package templates
+  consistent.
 
 ### Type safety
 
@@ -40,21 +49,45 @@
 - Before concluding that types are sound, run `pnpm build` and then
   `pnpm typecheck`; cross-package type checking depends on built declarations.
 
-### Architecture reviews
+### Architecture and evidence
 
-- Before reviewing a PR, read the root `CONTEXT.md` and every relevant current
-  ADR under `docs/adr/`; treat their vocabulary, boundaries, and decisions as
-  repository standards alongside this file.
-- Reject code that silently reintroduces a removed architecture or contradicts
-  a current ADR. A deliberate architecture change must update `CONTEXT.md`,
-  replace the affected ADR, and delete decisions that are no longer useful.
+- Enforce package ownership: `core` owns framework contracts; `simulator` owns
+  trace mechanics and ordered Change extraction; `erc` owns address-free
+  standards; `system` owns the Monad Runtime and shared verified constants;
+  `protocols/*` own protocol semantics and deployments; `mcp-server` owns only
+  transport and composition.
+- Protocols must remain self-describing decorated classes discovered from
+  selected top-level exports, with dependencies declared and injected. Reject
+  import-time registration, separate registration objects, untyped Handles,
+  or decorated Protocol inheritance.
+- Every Capability must own exactly one direct TransactionNode and one pure,
+  typed Receipt parser. Nested Capabilities own additional transactions; core
+  alone validates and depth-first flattens the tree.
+- Simulation and Receipts must preserve the exact identity, length, and order
+  of immutable Event/native-transfer Changes. Reject inferred or reconstructed
+  evidence, approximate ordering, continued execution after a Warning, and
+  Receipt parsers that read external state.
 - Moss v1 is Monad-mainnet only. Reject speculative per-chain maps or repeated
   chain IDs in Protocol metadata, address constants, and Capability nodes;
   Runtime must instead reject an RPC whose reported chain ID is not `143`.
+- Reject hand-written ABIs and generated artifacts that drift from their
+  source. Every ABI must follow ADR 0007's compiled, explorer, or vendored
+  derivation and keep its origin and generated artifact verifiable.
 - Require every fixed official address added to `@themoss/system` to cite a
   canonical source and include an on-chain check for deployed bytecode and,
   for tokens, expected metadata. Addresses discovered dynamically from chain
   state do not belong in the fixed system constants.
+- For protocol-specific discovery, treat off-chain services only as candidate
+  sources: verify transaction targets and relevant parameters on-chain, fail
+  explicitly when verification is unavailable, and do not add static fallbacks.
+
+### Verification
+
+- Require focused tests for changed behavior and compile-time fixtures for
+  exported type contracts. Before approval, run `pnpm lint`, `pnpm build`,
+  `pnpm typecheck`, and `pnpm test` in that order; use `MOSS_SKIP_E2E=1` only
+  when the review environment cannot reach Monad mainnet, and state that the
+  live checks were skipped.
 
 ## Repo facts
 

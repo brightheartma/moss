@@ -25,6 +25,15 @@ import {
 import { ERC20 } from "@themoss/erc";
 import { decodeEventLog, formatUnits, getAddress, isAddress, parseUnits } from "viem";
 import { KuruOrderbookAbi, KuruRouterAbi } from "./abis/kuru.js";
+import type {
+  KuruQuote,
+  KuruSwapOutcome,
+  MarketCandidate,
+  PreparedSwap,
+  Route,
+  RouteLeg,
+  VerifiedMarket,
+} from "./types.js";
 
 // Official Monad mainnet Router:
 // https://docs.kuru.io/contracts/Contract-addresses (retrieved 2026-07-15).
@@ -37,6 +46,9 @@ const DEFAULT_SLIPPAGE_BPS = 50;
 const OptionalHumanTokenAmount = PositiveDecimalString.optional().describe(
   'An optional positive base-10 decimal amount in a token\'s display units, such as "1" or "1.5".',
 );
+const KuruSlippage = BasisPoints.min(50)
+  .max(5_000)
+  .describe("An integer basis-point count from 50 through 5000; 1 bps equals 0.01%.");
 
 const swapParams = {
   tokenIn: { type: TokenReference, description: "Asset offered to the swap." },
@@ -50,7 +62,7 @@ const swapParams = {
     description: "Minimum output quantity; omit when amountIn is supplied.",
   },
   slippage: {
-    type: BasisPoints.default(DEFAULT_SLIPPAGE_BPS),
+    type: KuruSlippage.default(DEFAULT_SLIPPAGE_BPS),
     description: "Maximum adverse movement allowed between quoting and execution.",
   },
 } satisfies ParamsSpec;
@@ -61,76 +73,6 @@ type SwapParams = Omit<InferredSwapParams, "amountIn" | "amountOut" | "slippage"
 type KuruSwapParams = Pick<SwapParams, "tokenIn" | "tokenOut"> & {
   slippage?: InferredSwapParams["slippage"];
 } & ({ amountIn: string; amountOut?: never } | { amountIn?: never; amountOut: string });
-
-type KuruQuote =
-  | {
-      amountSide: "amountIn";
-      amountIn: string;
-      estimatedAmountOut: string;
-      minimumAmountOut: string;
-      path: readonly TokenRef[];
-    }
-  | {
-      amountSide: "amountOut";
-      estimatedAmountIn: string;
-      maximumAmountIn: string;
-      minimumAmountOut: string;
-      path: readonly TokenRef[];
-    };
-
-type MarketParams = {
-  pricePrecision: bigint;
-  sizePrecision: bigint;
-  baseAsset: AddressValue;
-  baseDecimals: number;
-  quoteAsset: AddressValue;
-  quoteDecimals: number;
-};
-
-type MarketCandidate = {
-  address: AddressValue;
-  base: AddressValue;
-  quote: AddressValue;
-};
-
-type VerifiedMarket = {
-  address: AddressValue;
-  handle: Handle<typeof KuruOrderbookAbi>;
-  params: MarketParams;
-};
-
-type RouteLeg = {
-  market: VerifiedMarket;
-  input: TokenRef;
-  output: TokenRef;
-  inputDecimals: number;
-  outputDecimals: number;
-  isBuy: boolean;
-  nativeSend: boolean;
-};
-
-type Route = readonly RouteLeg[];
-
-type PreparedSwap = {
-  side: "amountIn" | "amountOut";
-  route: Route;
-  estimatedAmountIn: bigint;
-  executionAmountIn: bigint;
-  estimatedAmountOut: bigint;
-  minimumAmountOut: bigint;
-  inputDecimals: number;
-  outputDecimals: number;
-};
-
-export type KuruSwapOutcome = {
-  operation: "swap";
-  protocol: "kuru";
-  sender: AddressValue;
-  tokenIn: TokenRef;
-  tokenOut: TokenRef;
-  amountIn: string;
-  amountOut: string;
-};
 
 @Protocol({
   name: "kuru",

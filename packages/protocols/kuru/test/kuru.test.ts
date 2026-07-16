@@ -65,7 +65,12 @@ describe("Kuru", () => {
     });
     expect(loaded?.params.slippage).toMatchObject({
       description: expect.stringContaining("adverse movement"),
-      type: { default: 50, description: expect.stringContaining("1 bps equals 0.01%") },
+      type: {
+        default: 50,
+        minimum: 50,
+        maximum: 5_000,
+        description: expect.stringContaining("1 bps equals 0.01%"),
+      },
     });
     await expect(
       registry.action("kuru", "swap", ACCOUNT, {
@@ -81,6 +86,16 @@ describe("Kuru", () => {
         amountOut: "1",
       }),
     ).rejects.toThrow("provide exactly one of amountIn or amountOut");
+    for (const slippage of [49, 5_001]) {
+      await expect(
+        registry.action("kuru", "swap", ACCOUNT, {
+          tokenIn: NATIVE,
+          tokenOut: USDC_ADDRESS,
+          amountIn: "1",
+          slippage,
+        }),
+      ).rejects.toThrow();
+    }
   });
 
   it("discovers every direct and via-MON candidate and selects the best exact-input path", async () => {
@@ -89,13 +104,14 @@ describe("Kuru", () => {
       tokenIn: USDC_ADDRESS,
       tokenOut: AUSD_ADDRESS,
       amountIn: "1",
+      slippage: 5_000,
     });
     if (quote.kind !== "query") throw new Error("expected query");
     expect(quote.data).toEqual({
       amountSide: "amountIn",
       amountIn: "1",
       estimatedAmountOut: "1.2",
-      minimumAmountOut: "1.194",
+      minimumAmountOut: "0.6",
       path: [USDC_ADDRESS, NATIVE, AUSD_ADDRESS],
     });
     const request = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {

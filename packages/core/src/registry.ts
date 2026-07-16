@@ -70,6 +70,8 @@ interface Registered {
   receipts: Set<string>;
 }
 
+type CapabilityMethodMeta = Extract<MethodMeta, { kind: "capability" }>;
+
 export type ProtocolSource = ProtocolCtor | Record<string, unknown>;
 
 function configOf(value: unknown): ProtocolConfig<ProtocolDependencies> | undefined {
@@ -261,17 +263,15 @@ export class Registry {
   }
 
   parseReceipt(node: CapabilityNode, changes: readonly Change[]): Receipt {
-    const meta = this.#get(node.protocol).methods[node.method];
-    if (meta?.kind !== "capability") {
-      throw new Error(`unknown capability "${node.protocol}.${node.method}"`);
-    }
-    if (meta.spec.receipt !== node.receipt) {
-      throw new Error(
-        `capability "${node.protocol}.${node.method}" must use Receipt "${meta.spec.receipt}"`,
-      );
-    }
     flattenCapabilityTree(node);
-    return this.#runReceipt(node.protocol, node.receipt, changes);
+    const meta = this.#capabilityMeta(node.protocol, node.method);
+    return this.#runReceipt(node.protocol, meta.spec.receipt, changes);
+  }
+
+  validateCapabilityTree(root: CapabilityNode): void {
+    for (const { capability } of flattenCapabilityTree(root)) {
+      this.#capabilityMeta(capability.protocol, capability.method);
+    }
   }
 
   async #buildCapability(
@@ -297,7 +297,6 @@ export class Registry {
       protocol,
       method,
       params: toJsonSafe(params),
-      receipt: meta.spec.receipt,
       children,
     };
     flattenCapabilityTree(node);
@@ -387,6 +386,14 @@ export class Registry {
         this.#runReceipt(protocol, receipt, changes);
     }
     return Object.freeze(dependency);
+  }
+
+  #capabilityMeta(protocol: string, method: string): CapabilityMethodMeta {
+    const meta = this.#get(protocol).methods[method];
+    if (meta?.kind !== "capability") {
+      throw new Error(`unknown capability "${protocol}.${method}"`);
+    }
+    return meta;
   }
 
   #get(protocol: string): Registered {

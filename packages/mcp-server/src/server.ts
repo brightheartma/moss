@@ -42,14 +42,15 @@ const transactionSchema = z.object({
 });
 
 const capabilitySchema: z.ZodType<CapabilityNode> = z.lazy(() =>
-  z.object({
-    kind: z.literal("capability"),
-    protocol: z.string().min(1),
-    method: z.string().min(1),
-    params: jsonValueSchema,
-    receipt: z.string().min(1),
-    children: z.array(z.union([capabilitySchema, transactionSchema])),
-  }),
+  z
+    .object({
+      kind: z.literal("capability"),
+      protocol: z.string().min(1),
+      method: z.string().min(1),
+      params: jsonValueSchema,
+      children: z.array(z.union([capabilitySchema, transactionSchema])),
+    })
+    .strict(),
 ) as z.ZodType<CapabilityNode>;
 
 function json(data: unknown) {
@@ -177,6 +178,7 @@ export function createMossServer(opts: MossServerOptions): {
     },
     async ({ capability }) => {
       try {
+        registry.validateCapabilityTree(capability);
         return json(toAgentSimulation(await simulator.simulate(capability)));
       } catch (error) {
         return jsonError(error);

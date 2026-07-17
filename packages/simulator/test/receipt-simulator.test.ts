@@ -36,14 +36,18 @@ function coveringReceipt(changes: readonly Change[]): Receipt<{ operation: "run"
   };
 }
 
-function runtimeWithFrames(frames: CallFrame[]): MossRuntime {
+function runtimeWithFrames(
+  frames: CallFrame[],
+  requests?: { method: string; tracer?: string }[],
+): MossRuntime {
   let frameIndex = 0;
   return {
     rpcUrl: "http://offline",
     client: {
       request: async ({ method, params }: { method: string; params: unknown[] }) => {
+        const tracer = (params[2] as { tracer?: string } | undefined)?.tracer;
+        requests?.push({ method, ...(tracer ? { tracer } : {}) });
         if (method === "eth_estimateGas") return "0x5208";
-        const tracer = (params[2] as { tracer: string }).tracer;
         if (tracer === "callTracer") return frames[frameIndex++];
         return { pre: {}, post: {} };
       },
@@ -70,16 +74,29 @@ describe("Capability simulation", () => {
   });
 
   it("returns no Receipt for a revert and stops later transactions", async () => {
+    let receiptCalls = 0;
     const root = capability("parent", C, [capability("child", B)]);
     const simulator = createTraceSimulator(
       runtimeWithFrames([
-        { type: "CALL", from: A, to: B, error: "execution reverted" },
+        {
+          type: "CALL",
+          from: A,
+          to: B,
+          error: "execution reverted",
+          logs: [{ address: B, topics: ["0x01"], data: "0x02" }],
+        },
         { type: "CALL", from: A, to: C },
       ]),
-      { receipt: (_node, changes) => coveringReceipt(changes) },
+      {
+        receipt: () => {
+          receiptCalls += 1;
+          throw new Error("reverted transactions must not be parsed");
+        },
+      },
     );
 
     const outcome = await simulator.simulate(root);
+    expect(receiptCalls).toBe(0);
     expect(outcome.results).toHaveLength(1);
     expect(outcome.results[0]?.receipt).toBeUndefined();
     expect(outcome.results[0]?.warnings[0]?.code).toBe("REVERTED");
@@ -105,7 +122,37 @@ describe("Capability simulation", () => {
     expect(outcome.halted?.transactionIndex).toBe(0);
   });
 
-  it("classifies exact Change coverage failures without matching error text", async () => {
+  it("classifies forged Change coverage and halts before later work", async () => {
+    const requests: { method: string; tracer?: string }[] = [];
+    const root = capability("parent", C, [capability("child", B)]);
+    const outcome = await createTraceSimulator(
+      runtimeWithFrames(
+        [
+          {
+            type: "CALL",
+            from: A,
+            to: B,
+            logs: [{ address: B, topics: ["0x01"], data: "0x02" }],
+          },
+          { type: "CALL", from: A, to: C, logs: [] },
+        ],
+        requests,
+      ),
+      {
+        receipt: (_node, changes) => coveringReceipt(changes.map((change) => ({ ...change }))),
+      },
+    ).simulate(root);
+
+    expect(outcome.results).toHaveLength(1);
+    expect(outcome.results[0]?.warnings[0]?.code).toBe("CHANGE_COVERAGE_MISMATCH");
+    expect(outcome.halted).toEqual({
+      transactionIndex: 0,
+      reason: "Receipt Change 0 does not retain the original object in order",
+    });
+    expect(requests).toEqual([{ method: "debug_traceCall", tracer: "callTracer" }]);
+  });
+
+  it("treats arbitrary Receipt parser failures as terminal warnings", async () => {
     const outcome = await createTraceSimulator(
       runtimeWithFrames([
         {
@@ -115,12 +162,20 @@ describe("Capability simulation", () => {
           logs: [{ address: B, topics: ["0x01"], data: "0x02" }],
         },
       ]),
-      { receipt: () => coveringReceipt([]) },
+      {
+        receipt: () => {
+          throw new Error("parser rejected ambiguous evidence");
+        },
+      },
     ).simulate(capability("fixture", B));
 
     expect(outcome.results[0]?.warnings[0]).toEqual({
-      code: "CHANGE_COVERAGE_MISMATCH",
-      message: "Receipt covered 0 Changes; expected 1",
+      code: "RECEIPT_FAILED",
+      message: "parser rejected ambiguous evidence",
+    });
+    expect(outcome.halted).toEqual({
+      transactionIndex: 0,
+      reason: "parser rejected ambiguous evidence",
     });
   });
 });

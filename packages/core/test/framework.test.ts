@@ -463,9 +463,18 @@ describe("framework core seam", () => {
     expect(() => verifyReceiptCoverage(changes, copied)).toThrow("original object");
     const reordered = receiptFor("swap", [second, first]);
     expect(() => verifyReceiptCoverage(changes, reordered)).toThrow("original object");
+
+    const firstLeaf = receipt.changes[0];
+    if (firstLeaf?.kind !== "change") throw new Error("expected fixture ReceiptChange");
+    expect(() =>
+      verifyReceiptCoverage(changes, {
+        ...receipt,
+        changes: [receiptFor("approve", [second]), firstLeaf],
+      }),
+    ).toThrow("Receipt Change 0 does not retain the original object in order");
   });
 
-  it("validates nested Receipt outcomes and leaf text recursively", () => {
+  it("validates Receipt evidence recursively", () => {
     const change = {
       kind: "nativeTransfer",
       from: ACCOUNT,
@@ -480,6 +489,9 @@ describe("framework core seam", () => {
       changes: [nested],
     };
     expect(() => verifyReceiptCoverage([change], receipt)).not.toThrow();
+    expect(() => verifyReceiptCoverage([change], { ...receipt, text: "" })).toThrow(
+      "Receipt.text must be a non-empty string",
+    );
 
     const invalidNested = {
       ...nested,
@@ -497,6 +509,35 @@ describe("framework core seam", () => {
         ...receipt,
         changes: [{ ...nested, changes: [{ ...leaf, text: 1 as unknown as string }] }],
       }),
-    ).toThrow("text must be a string");
+    ).toThrow("text must be a non-empty string");
+
+    expect(() =>
+      verifyReceiptCoverage([change], {
+        ...receipt,
+        changes: [{ ...leaf, text: " " }],
+      }),
+    ).toThrow("Receipt.changes[0].text must be a non-empty string");
+
+    const cyclicReceipt = receiptFor("swap", [change]);
+    (cyclicReceipt as unknown as { changes: unknown[] }).changes = [cyclicReceipt];
+    expect(() => verifyReceiptCoverage([change], cyclicReceipt)).toThrow(
+      "Receipt.changes[0] contains a Receipt cycle",
+    );
+
+    const cyclicData: Record<string, unknown> = {};
+    cyclicData.self = cyclicData;
+    expect(() =>
+      verifyReceiptCoverage([change], {
+        ...receipt,
+        changes: [{ ...leaf, data: cyclicData } as unknown as typeof leaf],
+      }),
+    ).toThrow("Receipt.changes[0].data.self contains a cycle");
+
+    expect(() =>
+      verifyReceiptCoverage([change], {
+        ...receipt,
+        changes: [{ ...leaf, data: new Date(0) } as unknown as typeof leaf],
+      }),
+    ).toThrow("Receipt.changes[0].data contains a non-plain object");
   });
 });

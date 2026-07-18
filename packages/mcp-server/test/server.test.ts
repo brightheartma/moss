@@ -5,7 +5,7 @@ import {
   type Change,
   type Hex,
   type MossRuntime,
-  type ReceiptResult,
+  type Receipt,
   Registry,
 } from "@themoss/core";
 import * as erc from "@themoss/erc";
@@ -47,6 +47,22 @@ describe("moss MCP server", () => {
       "load",
       "simulate",
     ]);
+  });
+
+  it("passes the explicitly selected Trusted catalog into Registry", () => {
+    const token = system.USDC_ADDRESS;
+    const owner = getAddress("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    const spender = getAddress("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+    const { registry } = createMossServer({
+      runtime,
+      protocols: [erc],
+      trustedTokens: [{ address: token, label: "USDC" }],
+    });
+    const receipt = registry.parseReceipt(receiptCapability("erc20", "approve"), [
+      erc20Change(token, "Approval", owner, spender, 1n),
+    ]);
+
+    expect(receipt.text).toContain("Trusted(USDC)");
   });
 
   it("discovers direct Protocol exports and loads type plus field descriptions", async () => {
@@ -295,14 +311,16 @@ function eventChange(address: `0x${string}`): Change {
 function successfulSimulationResult(): SimulateOutcome["results"][number] {
   const first = eventChange("0x1111111111111111111111111111111111111111");
   const second = eventChange("0x2222222222222222222222222222222222222222");
-  const nested: ReceiptResult = {
+  const nested: Receipt = {
     kind: "receipt",
+    protocol: "erc20",
     outcome: { operation: "transfer" },
     text: "nested summary",
     changes: [{ kind: "change", change: second, data: { amount: "2" }, text: "second" }],
   };
-  const receipt: ReceiptResult = {
+  const receipt: Receipt = {
     kind: "receipt",
+    protocol: "kuru",
     outcome: { operation: "swap" },
     text: "root summary",
     changes: [{ kind: "change", change: first, data: { amount: "1" }, text: "first" }, nested],
@@ -379,7 +397,7 @@ function kuruEventChange(
   };
 }
 
-function simulationResult(protocol: string, method: string, receipt: ReceiptResult) {
+function simulationResult(protocol: string, method: string, receipt: Receipt) {
   return {
     protocol,
     method,

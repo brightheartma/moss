@@ -3,6 +3,7 @@ import {
   type CapabilityNode,
   type Change,
   type MossRuntime,
+  type Receipt,
   transaction,
 } from "@themoss/core";
 import { ERC20Abi } from "@themoss/erc";
@@ -14,7 +15,8 @@ import { PENDLE_ROUTER_ADDRESS } from "../src/addresses.js";
 import { discoverPendleMarkets } from "../src/market-discovery.js";
 import { quotePendleSwap } from "../src/market-quote.js";
 import { buildPendleSwapPlan } from "../src/swap-builder.js";
-import type { PendleQuote, VerifiedMarket } from "../src/types.js";
+import { parsePendleSwapReceipt } from "../src/swap-receipt.js";
+import type { PendleQuote, PendleSwapOutcome, VerifiedMarket } from "../src/types.js";
 
 const TRANSFER_EVENT = parseAbiItem(
   "event Transfer(address indexed from, address indexed to, uint256 value)",
@@ -35,28 +37,46 @@ describe.skipIf(!!process.env.MOSS_SKIP_E2E)("Pendle swap simulation", () => {
     market = first.market;
   }, 180_000);
 
-  it("simulates buying PT into an ordered, non-reverting Change trace", {
+  it("simulates buying PT into an exhaustive typed Receipt", {
     timeout: 240_000,
   }, async () => {
-    const { quote, holder, changes } = await simulateSwap(runtime, market, {
+    const { quote, holder, changes, outcome } = await simulateSwap(runtime, market, {
       tokenIn: market.underlying,
       tokenOut: market.pt,
     });
     expect(quote.direction).toBe("buy-pt");
     expect(changes.length).toBeGreaterThan(0);
-    logTrace("buy-pt", quote, holder, changes);
+    expect(outcome).toMatchObject({
+      operation: "swap",
+      protocol: "pendle",
+      direction: "buy-pt",
+      market: market.market,
+      token: market.underlying,
+      receiver: holder,
+    });
+    expect(BigInt(outcome.amountOut)).toBeGreaterThanOrEqual(quote.minOut);
+    logTrace("buy-pt", quote, holder, changes, outcome);
   });
 
-  it("simulates selling PT into an ordered, non-reverting Change trace", {
+  it("simulates selling PT into an exhaustive typed Receipt", {
     timeout: 240_000,
   }, async () => {
-    const { quote, holder, changes } = await simulateSwap(runtime, market, {
+    const { quote, holder, changes, outcome } = await simulateSwap(runtime, market, {
       tokenIn: market.pt,
       tokenOut: market.underlying,
     });
     expect(quote.direction).toBe("sell-pt");
     expect(changes.length).toBeGreaterThan(0);
-    logTrace("sell-pt", quote, holder, changes);
+    expect(outcome).toMatchObject({
+      operation: "swap",
+      protocol: "pendle",
+      direction: "sell-pt",
+      market: market.market,
+      token: market.underlying,
+      receiver: holder,
+    });
+    expect(BigInt(outcome.amountOut)).toBeGreaterThanOrEqual(quote.minOut);
+    logTrace("sell-pt", quote, holder, changes, outcome);
   });
 });
 
@@ -64,7 +84,12 @@ async function simulateSwap(
   runtime: MossRuntime,
   market: VerifiedMarket,
   tokens: { tokenIn: Address; tokenOut: Address },
-): Promise<{ quote: PendleQuote; holder: Address; changes: readonly Change[] }> {
+): Promise<{
+  quote: PendleQuote;
+  holder: Address;
+  changes: readonly Change[];
+  outcome: PendleSwapOutcome;
+}> {
   const decimals = tokens.tokenIn === market.pt ? market.decimals.pt : market.decimals.underlying;
   const amountIn = 10n ** BigInt(decimals);
   // A neutral holder only: the market/SY/PT/YT are swap participants and would self-transfer.
@@ -108,20 +133,24 @@ async function simulateSwap(
   };
 
   const outcome = await createTraceSimulator(runtime, {
-    // Stage 8 owns the exhaustive parser; this pass-through only lets the simulator
-    // finish so we can capture the ordered Changes it produced.
-    receipt: (node, changes) => ({
-      kind: "receipt",
-      protocol: node.protocol,
-      outcome: null,
-      text: `${node.protocol}.${node.method}`,
-      changes: changes.map((change) => ({
-        kind: "change",
-        change,
-        data: null,
-        text: change.kind === "event" ? change.address : `${change.from}->${change.to}`,
-      })),
-    }),
+    receipt: (node, changes) => {
+      if (node.protocol === "pendle") {
+        return { ...parsePendleSwapReceipt(changes), protocol: node.protocol } as Receipt;
+      }
+      // The nested ERC20 approval is not the Pendle parser's concern; cover it trivially.
+      return {
+        kind: "receipt",
+        protocol: node.protocol,
+        outcome: null,
+        text: `${node.protocol}.${node.method}`,
+        changes: changes.map((change) => ({
+          kind: "change",
+          change,
+          data: null,
+          text: change.kind === "event" ? change.address : `${change.from}->${change.to}`,
+        })),
+      };
+    },
   }).simulate(root);
 
   expect(outcome.halted).toBeUndefined();
@@ -131,7 +160,8 @@ async function simulateSwap(
   expect(swapResult?.gas).not.toBeNull();
   const changes = swapResult?.changes;
   if (!changes) throw new Error("simulation produced no Changes");
-  return { quote, holder, changes };
+  const swapOutcome = swapResult?.receipt?.outcome as PendleSwapOutcome;
+  return { quote, holder, changes, outcome: swapOutcome };
 }
 
 async function findHolder(
@@ -178,6 +208,7 @@ function logTrace(
   quote: PendleQuote,
   holder: Address,
   changes: readonly Change[],
+  outcome: PendleSwapOutcome,
 ): void {
   console.info(
     `[Pendle ${direction} simulation] ${JSON.stringify({
@@ -186,6 +217,7 @@ function logTrace(
       amountIn: quote.amountIn.toString(),
       expectedOut: quote.expectedOut.toString(),
       minOut: quote.minOut.toString(),
+      outcome,
       changeCount: changes.length,
       changes: changes.map((change) =>
         change.kind === "event"

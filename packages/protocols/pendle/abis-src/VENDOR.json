@@ -61,6 +61,13 @@
       "exportName": "PendleRouterStaticAbi",
       "contractName": "IPRouterStatic",
       "role": "PendleRouterStatic selector-proxy quote interface"
+    },
+    {
+      "file": "IPYieldToken.json",
+      "sourcePath": "build/artifacts/contracts/interfaces/IPYieldToken.sol/IPYieldToken.json",
+      "exportName": "PendleYieldTokenAbi",
+      "contractName": "IPYieldToken",
+      "role": "dynamically discovered YT swap-trace event evidence"
     }
   ]
 }

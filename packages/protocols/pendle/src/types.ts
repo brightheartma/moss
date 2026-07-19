@@ -131,6 +131,22 @@ export type PendleSwapPlan = Readonly<{
 }>;
 
 /**
+ * The settled result of a Pendle PT swap, derived entirely from the Router `SwapPtAndToken` event.
+ * `amountIn`/`amountOut` are raw minimal units as strings; the PT side is identified by `direction`.
+ */
+export type PendleSwapOutcome = Readonly<{
+  operation: "swap";
+  protocol: "pendle";
+  direction: PendleSwapDirection;
+  market: AddressValue;
+  token: AddressValue;
+  caller: AddressValue;
+  receiver: AddressValue;
+  amountIn: string;
+  amountOut: string;
+}>;
+
+/**
  * Isolates untrusted RouterStatic reads so the quoter can validate every returned value before use.
  */
 export interface PendleQuoteReader {

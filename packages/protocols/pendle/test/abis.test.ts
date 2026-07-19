@@ -9,6 +9,7 @@ import {
   PendleRouterAbi,
   PendleRouterStaticAbi,
   PendleStandardizedYieldAbi,
+  PendleYieldTokenAbi,
 } from "../src/abis/pendle.js";
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -46,6 +47,12 @@ describe("ABI coverage for the next Pendle stage", () => {
         expect.objectContaining({ type: "event", name: "Deposit" }),
         expect.objectContaining({ type: "event", name: "Redeem" }),
       ]),
+    );
+  });
+
+  it("retains the YT NewInterestIndex event a PT swap trace emits", () => {
+    expect(PendleYieldTokenAbi).toContainEqual(
+      expect.objectContaining({ type: "event", name: "NewInterestIndex" }),
     );
   });
 

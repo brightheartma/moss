@@ -72,6 +72,15 @@ export const SOURCES: readonly SourceSpec[] = [
       { type: "function", name: "swapExactTokenForPtStaticAndGenerateApproxParams" },
     ],
   },
+  {
+    // The YT emits NewInterestIndex inside a PT swap trace; the exhaustive Receipt parser needs it.
+    file: "IPYieldToken.json",
+    sourcePath: "build/artifacts/contracts/interfaces/IPYieldToken.sol/IPYieldToken.json",
+    exportName: "PendleYieldTokenAbi",
+    contractName: "IPYieldToken",
+    role: "dynamically discovered YT swap-trace event evidence",
+    requiredEntries: [{ type: "event", name: "NewInterestIndex" }],
+  },
 ] as const;
 
 export interface VendorInfo {

@@ -27,6 +27,7 @@
     "viem": "^2.54.3"
   },
   "devDependencies": {
+    "@themoss/simulator": "workspace:*",
     "@themoss/system": "workspace:*",
     "tsup": "^8.5.1",
     "tsx": "^4.19.0",

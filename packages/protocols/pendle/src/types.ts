@@ -1,4 +1,4 @@
-import type { AddressValue, MossRuntime } from "@themoss/core";
+import type { AddressValue, MossRuntime, TransactionNode } from "@themoss/core";
 
 export type MarketCandidate = Readonly<{
   market: AddressValue;
@@ -111,6 +111,24 @@ export type PendleSellPtQuote = PendleQuoteBase & Readonly<{ direction: "sell-pt
 export type PendleQuote = PendleBuyPtQuote | PendleSellPtQuote;
 
 export type PendleQuoteStage = "params" | "direction" | "router-static-read";
+
+/**
+ * The nested ERC20 allowance a Pendle swap needs before its Router call; `amount` is raw minimal units.
+ */
+export type PendleApprovalRequirement = Readonly<{
+  token: AddressValue;
+  spender: AddressValue;
+  amount: bigint;
+}>;
+
+/**
+ * One direct Pendle Router swap transaction plus the ERC20 approval it depends on.
+ */
+export type PendleSwapPlan = Readonly<{
+  direction: PendleSwapDirection;
+  approval: PendleApprovalRequirement;
+  transaction: TransactionNode;
+}>;
 
 /**
  * Isolates untrusted RouterStatic reads so the quoter can validate every returned value before use.

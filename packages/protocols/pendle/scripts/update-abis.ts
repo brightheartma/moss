@@ -9,7 +9,13 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assertRequiredEntries, generate, SOURCES, type VendorInfo } from "./abis.js";
+import {
+  assertRequiredEntries,
+  generate,
+  SOURCES,
+  selectReleaseVersion,
+  type VendorInfo,
+} from "./abis.js";
 
 const PACKAGE_NAME = "@pendle/core-v2";
 const DIST_TAG = "latest";
@@ -41,43 +47,26 @@ if (!registryResponse.ok) {
 }
 const registry = (await registryResponse.json()) as RegistryDoc;
 const publishedAt = (version: string) => Date.parse(registry.time[version] ?? "");
-const ageDays = (version: string) => Math.floor((Date.now() - publishedAt(version)) / dayMs);
 const stableVersions = Object.keys(registry.versions).filter((version) =>
   /^\d+\.\d+\.\d+$/.test(version),
 );
 
 const pinned = process.argv[2];
-let picked: string;
-if (pinned) {
-  if (!registry.versions[pinned]) {
-    throw new Error(`${PACKAGE_NAME}@${pinned} does not exist`);
-  }
-  picked = pinned;
-  console.log(`pinned to ${picked} by argument — age guard bypassed deliberately`);
-} else {
-  const latest = registry["dist-tags"][DIST_TAG];
-  if (!latest) {
-    throw new Error(`${PACKAGE_NAME} has no dist-tags.${DIST_TAG}`);
-  }
-  if (publishedAt(latest) <= releaseCutoff) {
-    picked = latest;
-  } else {
-    const fallback = stableVersions
-      .filter((version) => publishedAt(version) <= releaseCutoff)
-      .filter((version) => publishedAt(version) < publishedAt(latest))
-      .sort((a, b) => publishedAt(b) - publishedAt(a))[0];
-    if (!fallback) {
-      throw new Error(
-        `no ${PACKAGE_NAME} stable release is at least ${MIN_RELEASE_AGE_DAYS} days old`,
-      );
-    }
-    picked = fallback;
-  }
-  console.log(
-    `picked ${PACKAGE_NAME}@${picked} from dist-tags.${DIST_TAG} history ` +
-      `(${ageDays(picked)}d old, ${MIN_RELEASE_AGE_DAYS}d guard)`,
-  );
-}
+const picked = selectReleaseVersion(
+  {
+    distTags: registry["dist-tags"],
+    versions: registry.versions,
+    stableVersions,
+    publishedAt,
+  },
+  { distTag: DIST_TAG, now: Date.now(), minReleaseAgeDays: MIN_RELEASE_AGE_DAYS, pinned },
+);
+console.log(
+  pinned
+    ? `pinned to ${PACKAGE_NAME}@${picked} (satisfies the ${MIN_RELEASE_AGE_DAYS}-day release-age guard)`
+    : `picked ${PACKAGE_NAME}@${picked} from dist-tags.${DIST_TAG} history ` +
+        `(${MIN_RELEASE_AGE_DAYS}d release-age guard)`,
+);
 
 const dist = registry.versions[picked]?.dist;
 if (!dist?.tarball) {

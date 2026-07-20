@@ -107,6 +107,82 @@ export interface VendorInfo {
   artifacts: readonly Omit<SourceSpec, "requiredEntries">[];
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Registry facts needed to pick a vendorable release, independent of transport and file I/O. */
+export interface ReleaseCandidateSource {
+  distTags: Record<string, string>;
+  versions: Record<string, unknown>;
+  stableVersions: readonly string[];
+  /** Publication time in epoch milliseconds; NaN when the registry records none. */
+  publishedAt: (version: string) => number;
+}
+
+export interface ReleaseSelectionOptions {
+  distTag: string;
+  now: number;
+  minReleaseAgeDays: number;
+  pinned?: string;
+}
+
+/**
+ * Picks the @pendle/core-v2 version to vendor under ADR 0007's release-age guard. A pinned version
+ * is honored only when it exists, is on the stable `x.y.z` line, and is at least `minReleaseAgeDays`
+ * old — the same universe and freshness rule the automatic dist-tag walk enforces, so pinning
+ * selects a specific vetted release without bypassing the guard or reaching a prerelease. Without a
+ * pin, it takes dist-tag latest when old enough, otherwise the newest stable release that predates
+ * latest and clears the guard.
+ */
+export function selectReleaseVersion(
+  source: ReleaseCandidateSource,
+  options: ReleaseSelectionOptions,
+): string {
+  const releaseCutoff = options.now - options.minReleaseAgeDays * DAY_MS;
+  const ageDays = (version: string) =>
+    Math.floor((options.now - source.publishedAt(version)) / DAY_MS);
+  const clearsGuard = (version: string) => {
+    const at = source.publishedAt(version);
+    return Number.isFinite(at) && at <= releaseCutoff;
+  };
+
+  if (options.pinned !== undefined) {
+    const pinned = options.pinned;
+    if (!source.versions[pinned]) {
+      throw new Error(`@pendle/core-v2@${pinned} does not exist`);
+    }
+    if (!source.stableVersions.includes(pinned)) {
+      throw new Error(`pinned ${pinned} is not a stable x.y.z release`);
+    }
+    if (!Number.isFinite(source.publishedAt(pinned))) {
+      throw new Error(`npm metadata has no publication time for ${pinned}`);
+    }
+    if (!clearsGuard(pinned)) {
+      throw new Error(
+        `pinned ${pinned} is ${ageDays(pinned)}d old, younger than the ${options.minReleaseAgeDays}-day release-age guard`,
+      );
+    }
+    return pinned;
+  }
+
+  const latest = source.distTags[options.distTag];
+  if (!latest) {
+    throw new Error(`@pendle/core-v2 has no dist-tags.${options.distTag}`);
+  }
+  if (clearsGuard(latest)) {
+    return latest;
+  }
+  const fallback = source.stableVersions
+    .filter(clearsGuard)
+    .filter((version) => source.publishedAt(version) < source.publishedAt(latest))
+    .sort((a, b) => source.publishedAt(b) - source.publishedAt(a))[0];
+  if (!fallback) {
+    throw new Error(
+      `no @pendle/core-v2 stable release is at least ${options.minReleaseAgeDays} days old to satisfy the release-age guard`,
+    );
+  }
+  return fallback;
+}
+
 interface AbiEntry {
   type: string;
   name?: string;

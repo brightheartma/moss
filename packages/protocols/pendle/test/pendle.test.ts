@@ -56,4 +56,25 @@ describe("Pendle protocol", () => {
       }),
     ).rejects.toThrow(ParameterError);
   });
+
+  it("rejects a swap against a market whose readTokens fails as a caller error", async () => {
+    const reverting = {
+      rpcUrl: "",
+      client: {
+        readContract: async () => {
+          throw new Error("execution reverted");
+        },
+      },
+    } as unknown as MossRuntime;
+    const registry = new Registry(reverting).use(Pendle);
+    await expect(
+      registry.action("pendle", "swap", ACCOUNT, {
+        market: MARKET,
+        tokenIn: UNDERLYING,
+        tokenOut: PT,
+        amountIn: "1",
+        slippageBps: 50,
+      }),
+    ).rejects.toThrow(ParameterError);
+  });
 });

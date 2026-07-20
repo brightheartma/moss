@@ -150,12 +150,19 @@ export class Pendle {
    * exactly one of tokenIn/tokenOut to be the market's PT.
    */
   async #verifyForSwap(market: string, tokenIn: string, tokenOut: string): Promise<VerifiedMarket> {
-    const tokens = await this.runtime.client.readContract({
-      address: getAddress(market),
-      abi: PendleMarketAbi,
-      functionName: "readTokens",
-    });
-    const pt = getAddress(tokens[1]);
+    let pt: AddressValue;
+    try {
+      const tokens = await this.runtime.client.readContract({
+        address: getAddress(market),
+        abi: PendleMarketAbi,
+        functionName: "readTokens",
+      });
+      pt = getAddress(tokens[1]);
+    } catch {
+      // A non-Pendle or malformed market fails readTokens; surface it as a caller error, not a raw
+      // RPC decode error. verifyPendleMarket still re-validates the market below.
+      throw new ParameterError(`market ${market} is not a readable Pendle market`);
+    }
     const inAddr = getAddress(tokenIn);
     const outAddr = getAddress(tokenOut);
     const underlying: AddressValue | undefined =

@@ -20,7 +20,6 @@ import {
 import { ERC20 } from "@themoss/erc";
 import { formatUnits, getAddress, parseUnits } from "viem";
 import { PendleMarketAbi } from "./abis/pendle.js";
-import { PENDLE_ROUTER_ADDRESS } from "./addresses.js";
 import { discoverPendleMarkets } from "./market-discovery.js";
 import { quotePendleSwap } from "./market-quote.js";
 import { verifyPendleMarket } from "./market-verifier.js";
@@ -127,9 +126,9 @@ export class Pendle {
     const plan = buildPendleSwapPlan(quote, ctx.account);
     return [
       await this.erc20.approve({
-        token: quote.tokenIn,
-        spender: PENDLE_ROUTER_ADDRESS,
-        amount: quote.amountIn.toString(),
+        token: plan.approval.token,
+        spender: plan.approval.spender,
+        amount: plan.approval.amount.toString(),
       }),
       plan.transaction,
     ];

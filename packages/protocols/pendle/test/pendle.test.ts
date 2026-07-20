@@ -208,6 +208,35 @@ describe("Pendle swap and quote over a verified market", () => {
     ).toBe("swapExactTokenForPt");
   });
 
+  it("approves exactly the amount its swap transaction spends, from one plan source", async () => {
+    const registry = new Registry(verifiedMarketRuntime()).use(Pendle);
+    const capability = await registry.action("pendle", "swap", ACCOUNT, {
+      market: MARKET,
+      tokenIn: UNDERLYING,
+      tokenOut: PT,
+      amountIn: "1",
+      slippageBps: 50,
+    });
+    if (capability.kind !== "capability") throw new Error("expected a Capability");
+
+    const [approval, swap] = flattenCapabilityTree(capability);
+    if (!approval || !swap) throw new Error("expected an approval and a swap transaction");
+
+    const approveArgs = decodeFunctionData({
+      abi: ERC20Abi,
+      data: approval.transaction.data,
+    }).args;
+    const swapArgs = decodeFunctionData({
+      abi: PendleRouterAbi,
+      data: swap.transaction.data,
+    }).args;
+    // biome-ignore lint/suspicious/noExplicitAny: decoded ABI tuples are asserted field-by-field
+    const [, approvedAmount] = approveArgs as readonly any[];
+    // biome-ignore lint/suspicious/noExplicitAny: decoded ABI tuples are asserted field-by-field
+    const [, , , , swapInput] = swapArgs as readonly any[];
+    expect(approvedAmount).toBe(swapInput.netTokenIn);
+  });
+
   it("builds a sell-PT tree that approves and calls swapExactPtForToken", async () => {
     const registry = new Registry(verifiedMarketRuntime()).use(Pendle);
     const capability = await registry.action("pendle", "swap", ACCOUNT, {

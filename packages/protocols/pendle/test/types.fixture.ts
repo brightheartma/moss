@@ -1,4 +1,5 @@
-import type { ActionCtx } from "@themoss/core";
+import type { ActionCtx, CapabilitySpec, Change, ReceiptResult } from "@themoss/core";
+import { Receipt } from "@themoss/core";
 import type { Pendle } from "../src/index.js";
 import type { PendleQuote, PendleSwapOutcome } from "../src/types.js";
 
@@ -81,3 +82,73 @@ const wrongOutcome: PendleSwapOutcome = {
   operation: "transfer",
 };
 void wrongOutcome;
+
+// A Capability's `receipt` must name a method that returns a ReceiptResult; the receipt-name binding
+// rejects a Capability, a Query, or a name that is not a receipt method at all.
+declare function assertSwapSpec(spec: CapabilitySpec<Pendle>): void;
+
+assertSwapSpec({
+  intent: "swap",
+  verb: "swap",
+  params: {},
+  receipt: "swapReceipt",
+  risk: ["fundOut"],
+});
+
+assertSwapSpec({
+  intent: "swap",
+  verb: "swap",
+  params: {},
+  // @ts-expect-error swap returns a CapabilityResult, so it is not a receipt method
+  receipt: "swap",
+  risk: ["fundOut"],
+});
+
+assertSwapSpec({
+  intent: "swap",
+  verb: "swap",
+  params: {},
+  // @ts-expect-error quote is a Query returning a view, not a ReceiptResult
+  receipt: "quote",
+  risk: ["fundOut"],
+});
+
+assertSwapSpec({
+  intent: "swap",
+  verb: "swap",
+  params: {},
+  // @ts-expect-error markets is a Query, not a receipt method
+  receipt: "markets",
+  risk: ["fundOut"],
+});
+
+assertSwapSpec({
+  intent: "swap",
+  verb: "swap",
+  params: {},
+  // @ts-expect-error no such method exists on Pendle
+  receipt: "notAMethod",
+  risk: ["fundOut"],
+});
+
+// The @Receipt() decorator constrains the method it decorates to (changes: readonly Change[]) =>
+// ReceiptResult; a wrong input or a non-ReceiptResult return is rejected at the decoration site.
+class ReceiptContractProbe {
+  @Receipt()
+  goodReceipt(_changes: readonly Change[]): ReceiptResult<PendleSwapOutcome> {
+    throw new Error("type-level fixture only");
+  }
+
+  // @ts-expect-error a receipt method must accept (changes: readonly Change[]), not a number
+  @Receipt()
+  wrongInput(_n: number): ReceiptResult<PendleSwapOutcome> {
+    throw new Error("type-level fixture only");
+  }
+
+  // @ts-expect-error a receipt method must return a ReceiptResult, not a bare value
+  @Receipt()
+  wrongOutput(_changes: readonly Change[]): number {
+    return 1;
+  }
+}
+void ReceiptContractProbe;

@@ -1,8 +1,7 @@
 {
   "name": "@themoss/protocol-pendle",
-  "version": "0.0.0",
-  "private": true,
-  "description": "Development package for the Pendle protocol adapter on Monad",
+  "version": "0.1.0",
+  "description": "Moss protocol adapter for Pendle — PT yield trading on Monad",
   "license": "MIT",
   "type": "module",
   "exports": {

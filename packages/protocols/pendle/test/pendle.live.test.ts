@@ -1,4 +1,4 @@
-import { type Address, type MossRuntime, Registry } from "@themoss/core";
+import { type Address, type CapabilityNode, type MossRuntime, Registry } from "@themoss/core";
 import { ERC20Abi } from "@themoss/erc";
 import { createTraceSimulator } from "@themoss/simulator";
 import { monadRuntime } from "@themoss/system";
@@ -18,10 +18,15 @@ const MAX_LOG_PAGES = 400n;
 const ZERO_ACCOUNT = getAddress("0x0000000000000000000000000000000000000000");
 // A small amount keeps neutral-holder discovery robust: far more addresses hold >= 0.01 than >= 1.
 const SWAP_AMOUNT = "0.01";
+// The sell self-funds: buy this much underlying worth of PT, then sell part of it. Both are well
+// above Pendle's dust floor (a trade so small its LP fee rounds to zero reverts with
+// MarketZeroNetLPFee), so the sell exercises a real, fee-bearing trade.
+const SELL_FUND_AMOUNT = "0.1";
+const SELL_AMOUNT = "0.05";
 
-// The buy direction exercises the full registered swap through simulation against a neutral
-// underlying holder. Selling PT is covered by the sell-quote here plus the offline receipt/builder
-// unit tests, because neutral PT holders are too sparse on this young chain to simulate reliably.
+// Both swap directions are simulated end to end. The buy runs against a neutral underlying holder;
+// the sell buys PT first in the same accumulated-state simulation, so it needs no scarce neutral PT
+// holder to fund it.
 describe.skipIf(!!process.env.MOSS_SKIP_E2E)("Pendle protocol on Monad mainnet", () => {
   let runtime: MossRuntime;
   let registry: Registry;
@@ -71,6 +76,58 @@ describe.skipIf(!!process.env.MOSS_SKIP_E2E)("Pendle protocol on Monad mainnet",
     console.info(`[Pendle buy-pt] ${JSON.stringify(outcome)}`);
   });
 
+  it("sells PT back into underlying with an exhaustive typed Receipt", {
+    timeout: 300_000,
+  }, async () => {
+    const holder = await findHolder(
+      market.underlying,
+      market.decimals.underlying,
+      SELL_FUND_AMOUNT,
+    );
+    const buy = await registry.action("pendle", "swap", holder, {
+      market: market.market,
+      tokenIn: market.underlying,
+      tokenOut: market.pt,
+      amountIn: SELL_FUND_AMOUNT,
+      slippageBps: 50,
+    });
+    const sell = await registry.action("pendle", "swap", holder, {
+      market: market.market,
+      tokenIn: market.pt,
+      tokenOut: market.underlying,
+      amountIn: SELL_AMOUNT,
+      slippageBps: 50,
+    });
+    if (buy.kind !== "capability" || sell.kind !== "capability") {
+      throw new Error("expected two swap capabilities");
+    }
+    // Nest the sell under the buy so the tree stays valid (each capability owns exactly one direct
+    // transaction). Flattening yields buy-approve, buy-swap, sell-approve, sell-swap in order, and
+    // the accumulated-state simulation funds the sell from the PT the buy produced.
+    const root: CapabilityNode = { ...buy, children: [...buy.children, sell] };
+
+    const result = await createTraceSimulator(runtime, {
+      receipt: (node, changes) => registry.parseReceipt(node, changes),
+    }).simulate(root);
+
+    expect(result.halted).toBeUndefined();
+    const swap = result.results.at(-1);
+    expect(swap?.reverted).toBe(false);
+    expect(swap?.warnings).toEqual([]);
+    expect(swap?.gas).not.toBeNull();
+    const outcome = swap?.receipt?.outcome as PendleSwapOutcome;
+    expect(outcome).toMatchObject({
+      operation: "swap",
+      protocol: "pendle",
+      direction: "sell-pt",
+      market: market.market,
+      token: market.underlying,
+      receiver: holder,
+    });
+    expect(BigInt(outcome.amountOut)).toBeGreaterThan(0n);
+    console.info(`[Pendle sell-pt] ${JSON.stringify(outcome)}`);
+  });
+
   it("lists verified markets with inferred APY provenance", { timeout: 120_000 }, async () => {
     const result = await registry.action("pendle", "markets", ZERO_ACCOUNT, {});
     if (result.kind !== "query") throw new Error("expected a query result");
@@ -113,7 +170,11 @@ describe.skipIf(!!process.env.MOSS_SKIP_E2E)("Pendle protocol on Monad mainnet",
     return result.data as { direction: string; estimatedOut: string; minOut: string };
   }
 
-  async function findHolder(token: Address, decimals: number): Promise<Address> {
+  async function findHolder(
+    token: Address,
+    decimals: number,
+    amount: string = SWAP_AMOUNT,
+  ): Promise<Address> {
     const exclude = new Set(
       [
         market.market,
@@ -124,7 +185,7 @@ describe.skipIf(!!process.env.MOSS_SKIP_E2E)("Pendle protocol on Monad mainnet",
         PENDLE_ROUTER_ADDRESS,
       ].map((address) => address.toLowerCase()),
     );
-    const minAmount = parseUnits(SWAP_AMOUNT, decimals);
+    const minAmount = parseUnits(amount, decimals);
     const seen = new Set<string>();
     let toBlock = await runtime.client.getBlockNumber();
     for (let page = 0n; page < MAX_LOG_PAGES; page++) {

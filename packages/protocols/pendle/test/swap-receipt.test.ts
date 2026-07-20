@@ -14,6 +14,7 @@ import {
   PendleStandardizedYieldAbi,
   PendleYieldTokenAbi,
 } from "../src/abis/pendle.js";
+import { PENDLE_ROUTER_ADDRESS } from "../src/addresses.js";
 import { PendleSwapReceiptError, parsePendleSwapReceipt } from "../src/swap-receipt.js";
 
 const MARKET = getAddress("0x1111111111111111111111111111111111111111");
@@ -23,6 +24,8 @@ const YT = getAddress("0x4444444444444444444444444444444444444444");
 const UNDERLYING = getAddress("0x5555555555555555555555555555555555555555");
 const CALLER = getAddress("0x7777777777777777777777777777777777777777");
 const RECEIVER = getAddress("0x8888888888888888888888888888888888888888");
+const ROUTER = getAddress(PENDLE_ROUTER_ADDRESS);
+const FOREIGN = getAddress("0x9999999999999999999999999999999999999999");
 
 const TRANSFER = "event Transfer(address indexed from, address indexed to, uint256 value)";
 const APPROVAL = "event Approval(address indexed owner, address indexed spender, uint256 value)";
@@ -42,7 +45,11 @@ function event(emitter: Address, topic0: `0x${string}`): Change {
   });
 }
 
-function swapPtAndToken(netPtToAccount: bigint, netTokenToAccount: bigint): Change {
+function swapPtAndToken(
+  netPtToAccount: bigint,
+  netTokenToAccount: bigint,
+  emitter: Address = ROUTER,
+): Change {
   const topics = encodeEventTopics({
     abi: PendleRouterAbi,
     eventName: "SwapPtAndToken",
@@ -59,7 +66,7 @@ function swapPtAndToken(netPtToAccount: bigint, netTokenToAccount: bigint): Chan
   );
   return Object.freeze({
     kind: "event",
-    address: getAddress("0x9999999999999999999999999999999999999999"),
+    address: emitter,
     topics: Object.freeze(topics as `0x${string}`[]),
     data,
   });
@@ -156,6 +163,35 @@ describe("Pendle swap Receipt parser", () => {
     expect(() => parsePendleSwapReceipt([foreign, swapPtAndToken(1n, -1n)])).toThrow(
       PendleSwapReceiptError,
     );
+  });
+
+  it("rejects a SwapPtAndToken not emitted by the Pendle Router", () => {
+    const forged = swapPtAndToken(1_009_082n, -1_000_000n, FOREIGN);
+    expect(() => parsePendleSwapReceipt([forged])).toThrow(/not the Pendle Router/);
+  });
+
+  it("rejects a forged SwapPtAndToken even when a genuine one is present", () => {
+    const forged = swapPtAndToken(1n, -1n, FOREIGN);
+    expect(() => parsePendleSwapReceipt([forged, ...buySequence()])).toThrow(
+      /not the Pendle Router/,
+    );
+  });
+
+  it("rejects a Market event not emitted by the decoded market", () => {
+    const changes = [
+      event(FOREIGN, selector(PendleMarketAbi, "Swap")),
+      swapPtAndToken(1_009_082n, -1_000_000n),
+    ];
+    expect(() => parsePendleSwapReceipt(changes)).toThrow(/not the swap market/);
+  });
+
+  it.each([
+    ["netPtToAccount zero", 0n, -1n],
+    ["netTokenToAccount zero", 1n, 0n],
+    ["both positive", 1n, 1n],
+    ["both negative", -1n, -1n],
+  ])("rejects SwapPtAndToken amounts that are not non-zero opposite signs: %s", (_name, pt, token) => {
+    expect(() => parsePendleSwapReceipt([swapPtAndToken(pt, token)])).toThrow(/opposite signs/);
   });
 
   it("rejects an unexpected native transfer", () => {

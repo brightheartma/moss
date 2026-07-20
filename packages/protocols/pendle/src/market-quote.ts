@@ -88,7 +88,7 @@ export async function quoteVerifiedMarket(
       tokenOut,
       amountIn,
       expectedOut: netOut,
-      minOut: floorMinOut(netOut, slippageBps),
+      minOut: protectedMinOut(netOut, slippageBps),
       slippageBps,
       decimals,
       approxParams,
@@ -103,17 +103,27 @@ export async function quoteVerifiedMarket(
     tokenOut,
     amountIn,
     expectedOut: netOut,
-    minOut: floorMinOut(netOut, slippageBps),
+    minOut: protectedMinOut(netOut, slippageBps),
     slippageBps,
     decimals,
   });
 }
 
 /**
- * Floors the RouterStatic expectation by the caller's slippage tolerance, staying conservative.
+ * Floors the RouterStatic expectation by the caller's slippage tolerance and rejects any quote
+ * whose protective minimum output is zero. A zero minimum accepts any on-chain result, so it is the
+ * protocol-specific safe bound: it is enforced per quote against the actual expectation, catching
+ * both a 100% slippage setting and a tolerance that rounds a tiny expected output down to nothing.
  */
-function floorMinOut(expectedOut: bigint, slippageBps: number): bigint {
-  return (expectedOut * (BPS_DENOMINATOR - BigInt(slippageBps))) / BPS_DENOMINATOR;
+function protectedMinOut(expectedOut: bigint, slippageBps: number): bigint {
+  const minOut = (expectedOut * (BPS_DENOMINATOR - BigInt(slippageBps))) / BPS_DENOMINATOR;
+  if (minOut <= 0n) {
+    throw new PendleQuoteError(
+      "min-out",
+      `protective minimum output floored to zero for expected ${expectedOut} at ${slippageBps} bps; refusing an unprotected swap`,
+    );
+  }
+  return minOut;
 }
 
 function resolveDirection(

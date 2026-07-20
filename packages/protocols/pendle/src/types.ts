@@ -110,7 +110,7 @@ export type PendleSellPtQuote = PendleQuoteBase & Readonly<{ direction: "sell-pt
  */
 export type PendleQuote = PendleBuyPtQuote | PendleSellPtQuote;
 
-export type PendleQuoteStage = "params" | "direction" | "router-static-read";
+export type PendleQuoteStage = "params" | "direction" | "router-static-read" | "min-out";
 
 /**
  * The nested ERC20 allowance a Pendle swap needs before its Router call; `amount` is raw minimal units.

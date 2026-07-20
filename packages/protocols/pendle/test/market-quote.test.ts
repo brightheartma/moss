@@ -105,6 +105,40 @@ describe("Pendle RouterStatic quote", () => {
     expect(quote.minOut).toBe(NET_PT_OUT);
   });
 
+  it("rejects a buy quote whose protective minimum output would be zero at 100% slippage", async () => {
+    await expectFailure(
+      { tokenIn: UNDERLYING, tokenOut: PT, amountIn: 1_000_000n, slippageBps: 10_000 },
+      "min-out",
+      verifiedMarket(),
+    );
+  });
+
+  it("rejects a sell quote whose protective minimum output would be zero at 100% slippage", async () => {
+    await expectFailure(
+      { tokenIn: PT, tokenOut: UNDERLYING, amountIn: 1_000_000n, slippageBps: 10_000 },
+      "min-out",
+      verifiedMarket(),
+    );
+  });
+
+  it("rejects a quote whose protective minimum rounds down to zero on a tiny expected output", async () => {
+    await expectFailure(
+      { tokenIn: UNDERLYING, tokenOut: PT, amountIn: 1n, slippageBps: 1 },
+      "min-out",
+      verifiedMarket(),
+      mockReader({ quoteExactTokenForPt: async () => [1n, 0n, 0n, 0n, 0n, APPROX] }),
+    );
+  });
+
+  it("rejects a quote whose RouterStatic expectation is itself zero", async () => {
+    await expectFailure(
+      { tokenIn: UNDERLYING, tokenOut: PT, amountIn: 1_000_000n, slippageBps: 0 },
+      "min-out",
+      verifiedMarket(),
+      mockReader({ quoteExactTokenForPt: async () => [0n, 0n, 0n, 0n, 0n, APPROX] }),
+    );
+  });
+
   it("carries decimals from the verified market for each direction", async () => {
     const market = verifiedMarket({ decimals: { underlying: 6, pt: 18 } });
     const buy = await quoteVerifiedMarket(mockReader(), market, {

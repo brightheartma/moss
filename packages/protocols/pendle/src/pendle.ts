@@ -56,7 +56,8 @@ const swapParams = {
   },
   slippageBps: {
     type: BasisPoints,
-    description: "Maximum slippage tolerated; bounds the minimum output accepted.",
+    description:
+      "Maximum slippage tolerated; bounds the minimum output accepted. A quote is rejected when this leaves the protective minimum output at zero.",
   },
 } satisfies ParamsSpec;
 

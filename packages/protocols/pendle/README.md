@@ -14,7 +14,8 @@ discovered from the official Pendle API and verified on-chain before use.
 - **`quote` query** — same parameters; returns the expected and minimum output in display units for
   either direction without moving funds.
 - **`markets` query** — lists on-chain-verified Monad markets with expiry, decimals, and the
-  Pendle-API aggregated APY carried as `inferred` provenance (never an on-chain guarantee).
+  Pendle-API aggregated APY carried as `inferred` provenance (never an on-chain guarantee). The APY
+  is a decimal fraction, not a percentage: `0.05` means 5%.
 
 Every candidate market — whether from the Pendle API or passed in by the caller — is validated
 against the official V6 Market Factory (`isValidMarket`, `factory`), `readTokens`, SY token support,

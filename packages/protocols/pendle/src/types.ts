@@ -15,6 +15,7 @@ export type PendleApiMarketMetadata = Readonly<{
   name: string;
   protocol: string;
   expiry: string;
+  // Decimal fraction as returned by the Pendle API, not a percentage: 0.05 means 5% APY.
   aggregatedApy?: number;
   provenance: Readonly<{
     kind: "inferred";
@@ -162,7 +163,8 @@ export type PendleQuoteView = Readonly<{
 
 /**
  * One verified market for the public `markets` Query. `aggregatedApy` is Pendle-API inferred data,
- * carried with its provenance and never presented as an on-chain guarantee.
+ * carried with its provenance and never presented as an on-chain guarantee. It is a decimal fraction,
+ * not a percentage: 0.05 means 5% APY. `null` when the API reported no value.
  */
 export type PendleMarketView = Readonly<{
   market: AddressValue;

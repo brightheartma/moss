@@ -29,8 +29,9 @@
  * ERC-1967 slot, so `getabi` returns only the dispatcher ABI and a semantic
  * comparison of the vendored full interface fails wholesale. Covering them
  * needs facet enumeration + per-selector union comparison in `@themoss/abi-tools`,
- * tracked as a scoped follow-up; for v1 they stay on the pinned
- * `@pendle/core-v2` vendored derivation (ADR 0007's vendored tier).
+ * tracked in nishuzumi/moss#118 and recorded in abis.json (`selectorProxies`);
+ * for v1 they stay on the pinned `@pendle/core-v2` vendored derivation
+ * (ADR 0007's vendored tier).
  */
 import { readFileSync } from "node:fs";
 import {

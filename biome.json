@@ -6,7 +6,14 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!**/dist", "!**/node_modules", "!**/.changeset", "!**/src/abis"]
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/node_modules",
+      "!**/.changeset",
+      "!**/src/abis",
+      "!docs/week3-pendle-demo-studio/deck/**"
+    ]
   },
   "formatter": {
     "enabled": true,

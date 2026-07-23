@@ -6,7 +6,7 @@
 
 | Field | Value |
 | --- | --- |
-| User | `[PLACEHOLDER — e.g. Monad DeFi user exploring fixed yield via Pendle PT]` |
+| User | Monad DeFi user who wants fixed yield from Pendle PT but will not sign swap calldata they cannot read |
 | Problem | PT markets are hard to discover and quote; users fear signing opaque swap calldata. |
 | Intent | Buy PT on a verified Pendle market with a known underlying amount. |
 | Core Action | `pendle.swap` (buy PT direction) |
@@ -41,7 +41,7 @@ flowchart TD
 | `pendle.swap` | Builds the unsigned buy-PT Capability tree. |
 | `simulate` | Trace-simulates the swap; no signing or broadcast. |
 | Swap Receipt | Ordered Receipts for human review before any wallet step. |
-|
+
 ## Moss Demo Scope
 
 ### Real this week
@@ -70,12 +70,17 @@ flowchart TD
 
 ### Known Issues (starter)
 
+Verified on 2026-07-23 against Monad mainnet.
+
 | Issue | Owner | Status |
 | --- | --- | --- |
-| PR #109 not merged yet | Dev | `[PLACEHOLDER]` |
-| Simulation may fail for unfunded `MOSS_ACCOUNT` | Dev | Document; use holder from live tests if needed |
-| APY is `inferred` from Pendle API | Research | Must disclose in demo |
-| `[PLACEHOLDER]` | `[ROLE]` | `[PLACEHOLDER]` |
+| PR #109 not merged yet | Dev | Ready for review; `lint` / `build` / `typecheck` / `test` all green locally (325 tests) |
+| Simulation prefunds native balance only, so an ERC-20-in swap reverts for a sender holding no underlying | Dev | Worked around: the example defaults to a read-only holder and asserts the balance up front. Root fix is a caller ERC-20 state override on `SimulatorOptions`, proposed upstream and awaiting a decision |
+| APY is `inferred` from Pendle API | Research | Must disclose in demo. One market currently reports ~644%, which makes the disclosure concrete rather than theoretical |
+| Router / RouterStatic are selector proxies, so the ADR 0007 explorer cross-check cannot compare them | Dev | Recorded as [issue #118](https://github.com/brightheartma/moss/issues/118); MarketFactory is cross-checked, the rest stays on the vendored derivation |
+| Dust swaps revert on-chain with `MarketZeroNetLPFee`; the quote path never surfaces it | Dev | Only the simulator's REVERTED backstop catches it, reported as a generic revert. Decoding the selector is proposed upstream with the state-override item |
+| Live tests find a holder by scanning Transfer logs; a slow RPC can exhaust the page budget | Dev | Intermittent only, same root cause as the state-override item above |
+| Node may reject Monad's RPC certificate chain with `UNABLE_TO_GET_ISSUER_CERT_LOCALLY` | Dev | Environment-only; `NODE_EXTRA_CA_CERTS` workaround documented in the example README |
 
 ## This week we will NOT
 

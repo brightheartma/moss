@@ -4,14 +4,35 @@
 
 ## Moss Demo acceptance criteria
 
-- [ ] Reuses Week 2 Pendle work (PR #109, adapter package, or this example) — not a fresh onboarding exercise.
-- [ ] Exactly one user scenario and one core Action flow (`swap` buy-PT).
+- [x] Reuses Week 2 Pendle work (PR #109, adapter package, or this example) — not a fresh onboarding exercise.
+- [x] Exactly one user scenario and one core Action flow (`swap` buy-PT).
 - [ ] Research, Ops, and Dev each have visible, documented contributions.
 - [ ] Team can explain `User → Agent → Moss → Protocol → Result` end to end.
-- [ ] Real implementation, Mock parts, failure points, and Known Issues are labeled.
-- [ ] Asset-moving steps include human confirmation and risk disclosure.
+- [x] Real implementation, Mock parts, failure points, and Known Issues are labeled.
+- [x] Asset-moving steps include human confirmation and risk disclosure.
 - [ ] Demo artifacts exist: recording, repo/README, screenshots or logs.
 - [ ] Hackathon Readiness Card drafted for Week 4.
+
+## Verified run (2026-07-23, Monad mainnet)
+
+Recorded so Day 5 can be rehearsed against a known-good baseline.
+
+| Step | Command | Result |
+| --- | --- | --- |
+| markets | `pnpm --filter @themoss/example-pendle-demo markets` | 4 verified markets |
+| quote | `pnpm --filter @themoss/example-pendle-demo quote` | 0.01 underlying → ~0.010077 PT, min 0.010026 @ 50 bps |
+| swap | `pnpm --filter @themoss/example-pendle-demo swap` | approve + Router both simulate clean, no warnings |
+| repo checks | `pnpm lint` / `build` / `typecheck` / `test` | 325 tests passed |
+
+Swap receipt shows the full ordered chain: `Approval` → `Transfer` → `SY.Deposit` →
+`YT.NewInterestIndex` → `Market.Swap`, ending in `buy-pt: 10000 underlying -> 10077 PT`.
+
+Failure path is worth rehearsing too — `MOSS_ACCOUNT=0xcccc…cccc` yields:
+
+```
+demo sender 0xcccc… holds 0 USDat but the swap needs 0.01.
+Set MOSS_ACCOUNT to an address holding USDat, or lower MOSS_SWAP_AMOUNT.
+```
 
 ## Team submission package
 

@@ -41,7 +41,9 @@
 - Monad mainnet RPC reachable; Moss Runtime verifies chain ID `143`.
 - Caller supplies a valid `market` that passes factory, `readTokens`, SY support, and bytecode checks.
 - `tokenIn` / `tokenOut` must include exactly one PT side and the matching underlying.
-- Account must hold enough underlying and gas for simulation to succeed (demo scripts may use a placeholder account).
+- Account must already hold enough underlying for simulation to succeed. The simulator prefunds native
+  balance only, so a placeholder address reverts the Router call; the example defaults to a read-only
+  holder and checks the balance before building anything.
 
 ## Failure modes
 
@@ -91,4 +93,7 @@ Suggested user-facing lines:
 
 | Question | Owner | Resolution |
 | --- | --- | --- |
-| `[PLACEHOLDER]` | Research | `[PLACEHOLDER]` |
+| How should a caller fund the input token for simulation? | Dev | Open upstream: a caller ERC-20 state override on `SimulatorOptions`. Until then the example depends on a third-party wallet's balance |
+| Should a dust swap fail early instead of at simulation? | Dev | Open upstream: measured that RouterStatic quotes every amount without reverting, so only execution surfaces `MarketZeroNetLPFee`. Proposal is to decode the selector in the simulator's REVERTED path |
+| How should an inferred APY of ~644% be presented? | Research | Show it with the `inferred` label and say plainly it is API data, not an on-chain guarantee. Never let a headline APY drive execution |
+| What happens if the demo holder's balance moves before Day 5? | Dev | The balance assertion names the shortfall and points at `MOSS_ACCOUNT`; pick a fresh holder from `markets` output if it fires |

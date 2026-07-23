@@ -6,7 +6,7 @@
 
 - [x] Reuses Week 2 Pendle work (PR #109, adapter package, or this example) — not a fresh onboarding exercise.
 - [x] Exactly one user scenario and one core Action flow (`swap` buy-PT).
-- [ ] Research, Ops, and Dev each have visible, documented contributions.
+- [x] Research, Ops, and Dev each have visible, documented contributions.
 - [x] Team can explain `User → Agent → Moss → Protocol → Result` end to end — the `mcp` script walks it over the real protocol.
 - [x] Real implementation, Mock parts, failure points, and Known Issues are labeled.
 - [x] Asset-moving steps include human confirmation and risk disclosure.
@@ -42,6 +42,7 @@ Set MOSS_ACCOUNT to an address holding USDat, or lower MOSS_SWAP_AMOUNT.
 | Moss Team Card | [team-card.md](./team-card.md) | [ ] |
 | Week 2 evidence links | [PR #109](https://github.com/nishuzumi/moss/pull/109), pendle package, pendle-demo | [ ] |
 | Use Case Card + Flow Map | [use-case-and-scope.md](./use-case-and-scope.md) | [ ] |
+| Project Research Brief | [project-research-brief.md](./project-research-brief.md) | [x] |
 | Protocol & Risk Brief | [protocol-risk-brief.md](./protocol-risk-brief.md) | [ ] |
 | Repo / README / Demo | `examples/pendle-demo` + team fork | [ ] |
 | Landing page or project intro | [landing.html](./landing.html) — [published page](https://claude.ai/code/artifact/c4bac40b-126d-4e78-912f-7c8a168811e7) (private until shared) | [x] |

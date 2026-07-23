@@ -35,6 +35,7 @@ flowchart TD
 | --- | --- | --- |
 | [team-card.md](./team-card.md) | 1 | Moss Team Card + Week 2 evidence links |
 | [use-case-and-scope.md](./use-case-and-scope.md) | 2 | Use Case Card, flow map, demo scope |
+| [project-research-brief.md](./project-research-brief.md) | 3 | User problem evidence, alternatives, risks, and recommendations |
 | [protocol-risk-brief.md](./protocol-risk-brief.md) | 3 | Protocol & Risk Brief for Pendle PT swaps |
 | [demo-checklist.md](./demo-checklist.md) | 4–5 | Acceptance criteria and final submission package |
 | [hackathon-readiness.md](./hackathon-readiness.md) | 5 | Week 4 Hackathon backlog card |

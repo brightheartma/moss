@@ -22,6 +22,7 @@
     "@themoss/abi-tools",
     "@themoss/example-simple-flow",
     "@themoss/example-agent-swap",
+    "@themoss/example-pendle-demo",
     "@themoss/protocol-template"
   ]
 }

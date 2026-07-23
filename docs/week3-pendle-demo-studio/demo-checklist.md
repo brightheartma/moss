@@ -45,9 +45,9 @@ Set MOSS_ACCOUNT to an address holding USDat, or lower MOSS_SWAP_AMOUNT.
 | Protocol & Risk Brief | [protocol-risk-brief.md](./protocol-risk-brief.md) | [ ] |
 | Repo / README / Demo | `examples/pendle-demo` + team fork | [ ] |
 | Landing page or project intro | `[PLACEHOLDER]` | [ ] |
-| Scenario Test Log | `[PLACEHOLDER]` | [ ] |
-| Feedback Log | `[PLACEHOLDER]` | [ ] |
-| Team Decision & AI Log | `[PLACEHOLDER]` | [ ] |
+| Scenario Test Log | [feedback-log.md](./feedback-log.md) | [ ] |
+| Feedback Log | [feedback-log.md](./feedback-log.md) | [ ] |
+| Team Decision & AI Log | [decision-and-ai-log.md](./decision-and-ai-log.md) | [x] |
 | Contribution Statements | one per member | [ ] |
 | Hackathon Readiness Card | [hackathon-readiness.md](./hackathon-readiness.md) | [ ] |
 

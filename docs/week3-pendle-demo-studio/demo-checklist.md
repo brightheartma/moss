@@ -59,6 +59,24 @@ Set MOSS_ACCOUNT to an address holding USDat, or lower MOSS_SWAP_AMOUNT.
 - [ ] ≥1 peer feedback submitted.
 - [ ] Team Collaboration Retro completed.
 
+## Working schedule (compressed — Saturday is the last day)
+
+Pulled one day forward from the original Day 1–5 map. Thursday counts as Day 3 because the
+weekend is available.
+
+| When | Day | Must produce | Note |
+| --- | --- | --- | --- |
+| Thu (done) | 3 | Demo verified end to end; Cards drafted; pitch script | Technical work complete |
+| **Thu evening** | — | **Line up the ≥3 testers now** | Only step that depends on other people's time — book it before the content is ready |
+| Fri (day) | 4 | Recording | Run `mcp` once first to confirm the demo holder still has balance. Record before reading messages |
+| Fri (evening) | 4 | Collect tester feedback; send the PR follow-up if still unanswered | Friday leaves the maintainer the weekend; Saturday does not |
+| **Sat** | **5** | **Final day** — Decision & AI Log, contribution statement, submission package | |
+| Sun | — | Verify hackathon Plan B if PR #109 is still unmerged | Not a Week 3 deliverable; kept off the critical path |
+
+**Plan B** (hackathon only): the product repo depends on `@themoss/protocol-pendle` from a git
+dependency on the fork instead of npm. Prove it installs and runs one `markets` query before the
+hackathon starts — do not discover a broken dependency on day one.
+
 ## Day 4 test script (≥3 users)
 
 Ask each tester to phrase a request in their own words, e.g.:
@@ -83,8 +101,9 @@ Record:
 | Boundaries | 30s | Real vs Mock, risks, no auto-sign |
 | Next steps | 15s | Roles + Hackathon backlog |
 
-## Demo freeze checklist (end of Day 4)
+## Demo freeze checklist (end of Friday)
 
-- [ ] Script frozen; only bugfixes allowed on Day 5.
-- [ ] Known Issues list published in README or team doc.
+- [ ] Script frozen; only bugfixes allowed on Saturday.
+- [x] Known Issues list published — [use-case-and-scope.md](./use-case-and-scope.md).
 - [ ] Recording environment tested (RPC, MCP, fonts, resolution).
+- [ ] `pnpm build` run, `NODE_EXTRA_CA_CERTS` exported, `mcp` dry-run green.

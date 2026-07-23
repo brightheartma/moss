@@ -7,11 +7,13 @@
     "markets": "tsx src/markets.ts",
     "quote": "tsx src/quote.ts",
     "swap": "tsx src/swap.ts",
+    "mcp": "tsx src/mcp.ts",
     "typecheck": "tsc --noEmit",
     "test": "echo \"examples are exercised by e2e tests in packages\" && exit 0",
     "build": "echo \"examples are not built\" && exit 0"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@themoss/core": "workspace:*",
     "@themoss/erc": "workspace:*",
     "@themoss/protocol-pendle": "workspace:*",

@@ -50,7 +50,15 @@ pnpm --filter @themoss/example-pendle-demo quote
 
 # Full markets → quote → swap → simulate flow
 pnpm --filter @themoss/example-pendle-demo swap
+
+# The same flow, driven over MCP the way an Agent drives it
+pnpm --filter @themoss/example-pendle-demo mcp
 ```
+
+The first three call the Registry in-process, which proves Moss reaches Pendle. `mcp` speaks the
+MCP protocol to the built server over stdio, which proves an *Agent* can — it walks `discover` →
+`load` → `action` → `simulate` and prints the risk labels `load` returns before anything is built.
+It needs `pnpm build` first, since it launches `packages/mcp-server/dist/cli.js`.
 
 Optional environment variables:
 

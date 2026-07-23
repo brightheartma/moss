@@ -7,7 +7,7 @@
 - [x] Reuses Week 2 Pendle work (PR #109, adapter package, or this example) — not a fresh onboarding exercise.
 - [x] Exactly one user scenario and one core Action flow (`swap` buy-PT).
 - [ ] Research, Ops, and Dev each have visible, documented contributions.
-- [ ] Team can explain `User → Agent → Moss → Protocol → Result` end to end.
+- [x] Team can explain `User → Agent → Moss → Protocol → Result` end to end — the `mcp` script walks it over the real protocol.
 - [x] Real implementation, Mock parts, failure points, and Known Issues are labeled.
 - [x] Asset-moving steps include human confirmation and risk disclosure.
 - [ ] Demo artifacts exist: recording, repo/README, screenshots or logs.
@@ -22,6 +22,7 @@ Recorded so Day 5 can be rehearsed against a known-good baseline.
 | markets | `pnpm --filter @themoss/example-pendle-demo markets` | 4 verified markets |
 | quote | `pnpm --filter @themoss/example-pendle-demo quote` | 0.01 underlying → ~0.010077 PT, min 0.010026 @ 50 bps |
 | swap | `pnpm --filter @themoss/example-pendle-demo swap` | approve + Router both simulate clean, no warnings |
+| **mcp** | `pnpm --filter @themoss/example-pendle-demo mcp` | Four tools reachable; `load` returns `risk = fundOut, approval, priceImpact`; `simulate` returns `ok: true` |
 | repo checks | `pnpm lint` / `build` / `typecheck` / `test` | 325 tests passed |
 
 Swap receipt shows the full ordered chain: `Approval` → `Transfer` → `SY.Deposit` →

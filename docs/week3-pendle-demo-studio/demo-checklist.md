@@ -44,7 +44,7 @@ Set MOSS_ACCOUNT to an address holding USDat, or lower MOSS_SWAP_AMOUNT.
 | Use Case Card + Flow Map | [use-case-and-scope.md](./use-case-and-scope.md) | [ ] |
 | Protocol & Risk Brief | [protocol-risk-brief.md](./protocol-risk-brief.md) | [ ] |
 | Repo / README / Demo | `examples/pendle-demo` + team fork | [ ] |
-| Landing page or project intro | `[PLACEHOLDER]` | [ ] |
+| Landing page or project intro | [landing.html](./landing.html) — [published page](https://claude.ai/code/artifact/c4bac40b-126d-4e78-912f-7c8a168811e7) (private until shared) | [x] |
 | Scenario Test Log | [feedback-log.md](./feedback-log.md) | [ ] |
 | Feedback Log | [feedback-log.md](./feedback-log.md) | [ ] |
 | Team Decision & AI Log | [decision-and-ai-log.md](./decision-and-ai-log.md) | [x] |

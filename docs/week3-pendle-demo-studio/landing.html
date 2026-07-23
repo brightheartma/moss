@@ -1,0 +1,420 @@
+<title>PT Yield Assistant — 让 Agent 上链，但看得见每一步</title>
+
+<style>
+  :root {
+    --ink: #14171f;
+    --ink-2: #2b303c;
+    --paper: #faf8f5;
+    --paper-2: #f0ede7;
+    --rule: #ddd8cf;
+    --muted: #6a6f7d;
+    --amber: #a3620f;
+    --amber-soft: #f5e6cd;
+    --rust: #9c3a2c;
+    --teal: #1c6155;
+
+    --fg: var(--ink);
+    --fg-muted: var(--muted);
+    --bg: var(--paper);
+    --bg-inset: var(--paper-2);
+    --border: var(--rule);
+    --accent: var(--amber);
+    --accent-wash: var(--amber-soft);
+    --stop: var(--rust);
+    --ok: var(--teal);
+
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "PingFang SC", "Hiragino Sans GB", sans-serif;
+
+    --measure: 34rem;
+    --wide: 54rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fg: #e8e4dc;
+      --fg-muted: #999fae;
+      --bg: #101319;
+      --bg-inset: #181c24;
+      --border: #2c313c;
+      --accent: #e0a34e;
+      --accent-wash: #2a2115;
+      --stop: #d9705f;
+      --ok: #5cb3a0;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --fg: #e8e4dc;
+    --fg-muted: #999fae;
+    --bg: #101319;
+    --bg-inset: #181c24;
+    --border: #2c313c;
+    --accent: #e0a34e;
+    --accent-wash: #2a2115;
+    --stop: #d9705f;
+    --ok: #5cb3a0;
+  }
+
+  :root[data-theme="light"] {
+    --fg: var(--ink);
+    --fg-muted: var(--muted);
+    --bg: var(--paper);
+    --bg-inset: var(--paper-2);
+    --border: var(--rule);
+    --accent: var(--amber);
+    --accent-wash: var(--amber-soft);
+    --stop: var(--rust);
+    --ok: var(--teal);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--sans);
+    font-size: 16.5px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: var(--wide);
+    margin: 0 auto;
+    padding: clamp(2.5rem, 6vw, 5rem) clamp(1.25rem, 4vw, 2.5rem) 6rem;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(3rem, 7vw, 5rem);
+  }
+
+  .col {
+    max-width: var(--measure);
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--mono);
+    font-weight: 600;
+    text-wrap: balance;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+  }
+
+  h1 { font-size: clamp(1.9rem, 5vw, 2.9rem); }
+  h2 { font-size: clamp(1.25rem, 3vw, 1.55rem); }
+  h3 { font-size: 1rem; letter-spacing: 0; }
+
+  p { max-width: var(--measure); }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+  }
+
+  .lede { font-size: 1.12rem; color: var(--fg-muted); }
+
+  a { color: var(--accent); text-underline-offset: 3px; }
+  a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  code, .mono { font-family: var(--mono); font-size: 0.87em; }
+
+  /* --- hero calldata --- */
+  .calldata {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    line-height: 1.75;
+    color: var(--fg-muted);
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    padding: 1.15rem 1.25rem;
+    overflow: hidden;
+    word-break: break-all;
+    max-height: 9.5rem;
+    position: relative;
+    -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+  }
+
+  /* --- side-by-side reveal --- */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    border: 1px solid var(--border);
+  }
+  /* Stacked by default: divider on top. Side by side past the breakpoint: divider on the
+     left. Order matters — the narrow rule must come first or it wins the cascade. */
+  .compare > * + * { border-top: 1px solid var(--border); }
+  @media (min-width: 46rem) {
+    .compare { grid-template-columns: 1fr 1fr; }
+    .compare > * + * { border-top: 0; border-left: 1px solid var(--border); }
+  }
+
+  .pane { padding: 1.4rem 1.35rem; display: flex; flex-direction: column; gap: 0.7rem; }
+  .pane.before { background: var(--bg-inset); }
+  .pane.after { background: var(--accent-wash); }
+  .pane p { font-size: 0.93rem; margin: 0; }
+  .pane .val {
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    line-height: 1.6;
+    word-break: break-all;
+  }
+
+  /* --- event chain --- */
+  .chain { list-style: none; display: flex; flex-direction: column; }
+  .chain li {
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    padding: 0.32rem 0 0.32rem 1.35rem;
+    border-left: 2px solid var(--border);
+    position: relative;
+    color: var(--fg-muted);
+  }
+  .chain li::before {
+    content: "";
+    position: absolute;
+    left: -3px;
+    top: 1.05em;
+    width: 4px;
+    height: 1px;
+    background: var(--border);
+  }
+  .chain li.key {
+    color: var(--fg);
+    border-left-color: var(--accent);
+  }
+  .chain li.key::before { background: var(--accent); width: 9px; left: -4px; height: 2px; }
+
+  /* --- risk tags --- */
+  .tags { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .tag {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    padding: 0.2rem 0.6rem;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 2px;
+  }
+
+  /* --- table --- */
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.92rem; min-width: 30rem; }
+  th, td {
+    text-align: left;
+    padding: 0.6rem 0.9rem 0.6rem 0;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+    font-weight: 500;
+  }
+  td.state { font-family: var(--mono); font-size: 0.82rem; white-space: nowrap; }
+  .yes { color: var(--ok); }
+  .no { color: var(--fg-muted); }
+
+  /* --- terminal block --- */
+  .term {
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    padding: 1.1rem 1.25rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 0.83rem;
+    line-height: 1.75;
+  }
+  .term .cmt { color: var(--fg-muted); }
+  .term .cmd { color: var(--fg); }
+
+  /* --- stop notice --- */
+  .stop {
+    border-left: 3px solid var(--stop);
+    padding: 0.15rem 0 0.15rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+  .stop .mono { color: var(--stop); font-size: 0.83rem; }
+
+  /* --- stats --- */
+  .stats { display: flex; flex-wrap: wrap; gap: 2.5rem; }
+  .stat { display: flex; flex-direction: column; gap: 0.15rem; }
+  .stat .n {
+    font-family: var(--mono);
+    font-size: 1.5rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  .stat .l { font-size: 0.8rem; color: var(--fg-muted); }
+
+  hr { border: 0; border-top: 1px solid var(--border); }
+
+  footer { font-size: 0.88rem; color: var(--fg-muted); display: flex; flex-direction: column; gap: 0.6rem; }
+</style>
+
+<main class="page">
+
+  <header class="col">
+    <span class="eyebrow">Monad Builder Camp · Week 3</span>
+    <h1>PT Yield Assistant</h1>
+    <p class="lede">
+      让 AI Agent 在 Monad 上买 Pendle PT——但每一步都留下可读的证据，
+      而且它永远不能替你签名。
+    </p>
+  </header>
+
+  <section class="col" aria-labelledby="problem">
+    <h2 id="problem">你上次签名时，看到的是这个</h2>
+    <div class="calldata" aria-label="一段真实的 swap calldata">
+      0xc81f847a000000000000000000000000cccccccccccccccccccccccccccccccccccccccc0000000000000000000000001519fb0d8885020387fcd6a67bc888a168a40afa000000000000000000000000000000000000000000000000000000000000272a000000000000000000000000000000000000000000000000000000000000272a0000000000000000000000000000000000000000000000000000000000002858000000000000000000000000000000000000000000000000000000000000275d000000000000000000000000000000000000000000000000000000000000001e
+    </div>
+    <p>
+      这是一笔真实的 Pendle swap。钱包会把它交给你，问你签不签。
+      你只有两个选择：<strong>盲签，或者放弃。</strong>
+    </p>
+  </section>
+
+  <section aria-labelledby="reveal" style="display:flex; flex-direction:column; gap:1.1rem;">
+    <h2 id="reveal" style="max-width: var(--measure);">同一笔交易，Moss 让你看到的</h2>
+    <div class="compare">
+      <div class="pane before">
+        <span class="eyebrow">签名前你能拿到的</span>
+        <p class="val">0xc81f847a…275d000…001e</p>
+        <p style="color: var(--fg-muted);">一个函数选择器，加上 1,600 个十六进制字符。</p>
+      </div>
+      <div class="pane after">
+        <span class="eyebrow">模拟之后的收据</span>
+        <p class="val">Pendle buy-pt:<br>10000 USDat → 10077 PT</p>
+        <p>花掉 0.01 USDat，拿到 0.010077 PT。市场 2026-08-27 到期。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="col" aria-labelledby="how">
+    <h2 id="how">证据从哪来</h2>
+    <p>
+      交易在链上真实模拟一遍，把发生过的事件<strong>按原始顺序</strong>取出来——
+      不是猜的，也不是事后重建的。
+    </p>
+    <ul class="chain">
+      <li>ERC20.Approval — 授权 Router 支配 10000 USDat</li>
+      <li>ERC20.Transfer</li>
+      <li>ERC20.Transfer</li>
+      <li>SY.Deposit</li>
+      <li>YT.NewInterestIndex</li>
+      <li>ERC20.Transfer</li>
+      <li>Market.UpdateImpliedRate</li>
+      <li>Market.Swap</li>
+      <li class="key">Pendle buy-pt: 10000 USDat → 10077 PT</li>
+    </ul>
+  </section>
+
+  <section class="col" aria-labelledby="risk">
+    <h2 id="risk">风险标签在 Agent 动手之前就到了</h2>
+    <p>
+      Agent 调用 <code>load</code> 时，协议层直接返回这个操作的风险类别。
+      这不是文档里的一句承诺，是可以被程序读到的数据：
+    </p>
+    <div class="tags">
+      <span class="tag">fundOut</span>
+      <span class="tag">approval</span>
+      <span class="tag">priceImpact</span>
+    </div>
+    <p>资金会流出、会产生授权、有价格冲击——三件事，建交易之前就说清楚。</p>
+  </section>
+
+  <section class="col" aria-labelledby="stop">
+    <h2 id="stop">失败的时候，它说人话</h2>
+    <div class="stop">
+      <p class="mono">demo sender 0xcccc… holds 0 USDat but the swap needs 0.01.<br>
+        Set MOSS_ACCOUNT to an address holding USDat, or lower MOSS_SWAP_AMOUNT.</p>
+    </div>
+    <p>
+      而不是一句 <code>execution reverted</code>。
+      任何模拟警告都会中止流程——不是提示一下继续跑，是<strong>停下</strong>。
+    </p>
+  </section>
+
+  <section class="col" aria-labelledby="run">
+    <h2 id="run">跑一遍</h2>
+    <div class="term">
+      <div class="cmt"># Agent 走的路：MCP 协议，四个工具</div>
+      <div class="cmd">pnpm --filter @themoss/example-pendle-demo mcp</div>
+      <div class="cmt" style="margin-top:0.9rem;"># 也可以逐步看</div>
+      <div class="cmd">pnpm --filter @themoss/example-pendle-demo markets</div>
+      <div class="cmd">pnpm --filter @themoss/example-pendle-demo quote</div>
+      <div class="cmd">pnpm --filter @themoss/example-pendle-demo swap</div>
+    </div>
+    <p>
+      前三条在进程内调用 Moss，证明 <span class="mono">Moss → Pendle</span> 通了；
+      第一条走 MCP 协议，证明 <span class="mono">Agent → Moss</span> 也通了。
+    </p>
+  </section>
+
+  <section aria-labelledby="scope" style="display:flex; flex-direction:column; gap:1.1rem;">
+    <h2 id="scope" style="max-width: var(--measure);">哪些是真的</h2>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>能力</th><th>状态</th><th>说明</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>市场发现与链上验证</td><td class="state yes">真实</td><td>API 只负责提名候选，是不是真的由 Moss 上链核对</td></tr>
+          <tr><td>报价与交易构建</td><td class="state yes">真实</td><td>Monad 主网，RouterStatic</td></tr>
+          <tr><td>模拟与收据解析</td><td class="state yes">真实</td><td>事件顺序与链上一致</td></tr>
+          <tr><td>钱包签名与广播</td><td class="state no">不含</td><td><strong>这是设计，不是没做完。</strong>Moss 永不签名</td></tr>
+          <tr><td>自然语言界面</td><td class="state no">本周无</td><td>CLI 与 MCP；界面是 Week 4 的事</td></tr>
+          <tr><td>API 给出的 APY</td><td class="state">标注 inferred</td><td>参考信息，不是链上保证，不作为执行依据</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="col" aria-labelledby="evidence">
+    <h2 id="evidence">证据</h2>
+    <div class="stats">
+      <div class="stat"><span class="n">325</span><span class="l">测试全部通过</span></div>
+      <div class="stat"><span class="n">4</span><span class="l">链上验证的市场</span></div>
+      <div class="stat"><span class="n">0</span><span class="l">模拟警告</span></div>
+    </div>
+    <p>
+      底层的 Pendle 适配器由本人编写，已提交给上游 Moss 项目：
+      <a href="https://github.com/nishuzumi/moss/pull/109">PR #109</a>——
+      维护者给出了七项修改要求，全部完成，目前在等待合并。
+    </p>
+  </section>
+
+  <hr>
+
+  <section class="col" aria-labelledby="next">
+    <h2 id="next">接下来</h2>
+    <p>
+      做这个 demo 的过程中发现了框架本身的一个缺口：模拟只会预充原生币，
+      不会给调用者 ERC-20，所以任何需要代币输入的操作都无法凭空模拟。
+      这个问题已作为提案提交上游。
+    </p>
+    <p>
+      下一步是在它之上做一个交易台，让用户不用读 calldata 就能买固定收益——
+      同样的安全模型：<strong>先模拟，必确认，永不代签。</strong>
+    </p>
+  </section>
+
+  <footer>
+    <div>PT Yield Assistant · Monad Builder Camp Week 3 · Moss Collaboration Demo Studio</div>
+    <div>Monad 主网 (chain 143) · 构建于 <a href="https://github.com/nishuzumi/moss">Moss</a></div>
+  </footer>
+
+</main>

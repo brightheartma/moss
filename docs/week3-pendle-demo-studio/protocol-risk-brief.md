@@ -12,6 +12,34 @@
 | Discovery | Pendle official API nominates candidates; Moss re-verifies on-chain |
 | Execution | Pendle Router V4 via one direct swap route per market |
 
+## What Pendle is (background for Q&A prep)
+
+Pendle is a yield-splitting protocol and interest-rate market. A normal yield-bearing asset binds
+principal and future yield together; Pendle separates them so each can be traded on its own.
+
+- **SY** — wraps a yield-bearing asset (e.g. stETH) into Pendle's unified format.
+- **PT (Principal Token)** — the principal redeemable at maturity. Bought at a discount, redeemed
+  at full face value; the gap is a locked-in fixed yield. **This is what the demo buys.**
+- **YT (Yield Token)** — the yield accrued up to maturity. A bet on the yield rate rising; goes to
+  zero at maturity.
+- **AMM** — the market for PT and YT, priced along a curve tuned to yield and time-to-maturity.
+
+Example: a 1-year PT-stETH at 0.95 ETH redeems for ~1 ETH at maturity — hold to maturity and you
+have locked in ~5%. Someone betting staking yields will climb buys YT instead to amplify that bet.
+
+Common uses: buy PT for fixed yield; buy YT to bet on yield/points; sell YT to realize future
+yield now; provide liquidity for underlying yield + fees + incentives; hedge falling staking,
+lending, or funding rates.
+
+The point is that Pendle turns interest itself into a tradable asset — like stripping a bond into
+principal and coupon. PT is a fixed-income instrument; YT is a high-volatility yield derivative.
+
+Extra risks this framing surfaces, beyond the ones tabled below: smart-contract and upstream-protocol
+risk, underlying de-peg, YT decaying to zero at maturity, mispricing the expected rate, and thin
+liquidity / slippage on niche markets. **We only demo buy-PT, the fixed-income side.**
+
+Source: internal Pendle research notebook (NotebookLM).
+
 ## Capabilities and queries
 
 | Moss method | Kind | Purpose |

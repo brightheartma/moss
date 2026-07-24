@@ -260,6 +260,27 @@
   }
   .stat .l { font-size: 0.8rem; color: var(--fg-muted); }
 
+  /* --- opening hook --- */
+  .hook-figure { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+  .hook-num {
+    font-family: var(--mono);
+    font-size: clamp(4.5rem, 15vw, 8rem);
+    font-weight: 600;
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .hook-unit { font-size: 0.45em; font-weight: 500; }
+  .hook-tag {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--fg-muted);
+    max-width: 22ch;
+    line-height: 1.5;
+  }
+  .hook-line { font-size: 1.05rem; }
+
   hr { border: 0; border-top: 1px solid var(--border); }
 
   footer { font-size: 0.88rem; color: var(--fg-muted); display: flex; flex-direction: column; gap: 0.6rem; }
@@ -275,6 +296,19 @@
       而且它永远不能替你签名。
     </p>
   </header>
+
+  <section class="col" aria-labelledby="hook">
+    <span class="eyebrow" id="hook">先看一个数字</span>
+    <div class="hook-figure">
+      <span class="hook-num">644<span class="hook-unit">%</span></span>
+      <span class="hook-tag">某个 Pendle 市场此刻显示的年化<br>来自 API · Moss 标注为 inferred</span>
+    </div>
+    <p class="hook-line">
+      这个数字很诱人。但它不是链上保证，只是 API 报来的参考值。
+      <strong>Moss 不会因为它就替你动手——它会先把这个数字、连同它的来源，
+      一起摆到你面前，让你自己判断。</strong>
+    </p>
+  </section>
 
   <section class="col" aria-labelledby="problem">
     <h2 id="problem">你上次签名时，看到的是这个</h2>
@@ -308,7 +342,8 @@
   <section class="col" aria-labelledby="how">
     <h2 id="how">证据从哪来</h2>
     <p>
-      交易在链上真实模拟一遍，把发生过的事件<strong>按原始顺序</strong>取出来——
+      交易在链上真实模拟一遍，把发生过的每一个事件<strong>按原始顺序</strong>摊开——
+      不是给你一句“净流出多少”的结论，而是让你能逐步查验每一步。
       不是猜的，也不是事后重建的。
     </p>
     <ul class="chain">

@@ -29,6 +29,31 @@
 | PR #109 merge status | Ready for review as of 2026-07-23, all local checks green. Merge unblocks an npm dependency for Week 4 |
 | Simulator caller funding | Awaiting an upstream decision; the example depends on a third-party wallet's balance until then |
 
+## Contest research findings → plan adjustments
+
+Cross-referenced against a 154-source NotebookLM research pass on 2025-2026 Web3/AI hackathon winners
+(report + data table, 2026-07-24). Three adjustments, none of which change the locked scope above:
+
+1. **Narrative hook.** Winning submissions pick one concrete, almost absurd detail over a general
+   value prop — e.g. cellfi (ETHGlobal Taipei finalist) targets the 3.8B feature-phone users instead
+   of pitching "a better wallet"; ReviewSync's (ETHGlobal Buenos Aires) entire pitch opens on the
+   founder being unable to hail a ride in Argentina because their credit history was locked in a
+   different app. We already have an equivalent concrete detail sitting in "What worked" below (a
+   market currently reporting ~644% APY) — the pitch should open on that number, not bury it as a
+   footnote about APY provenance.
+2. **Demo must make the black box inspectable, not just readable.** Winning demos (Kimi-swarm, Monad
+   hackathon Agent-track winner; Seer, Solana infra-track #1) win by exposing the actual execution —
+   live graph visualization with mid-run interjection, or a full source-map replay with local variable
+   snapshots — not a plain-language summary. Our own instinct in `landing.html` (raw calldata → parsed
+   receipt) points the right direction; the trade desk UI should extend it into an inspectable,
+   steppable ordered Change/event trace, not stop at a one-line "net in/out" summary.
+3. **Merged beats review-ready.** The research's clearest signal on post-hackathon survival is that
+   projects with a concrete cold-start asset or clear institutional backing live, and projects without
+   a business case or a budget-holding sponsor die (≈70% mortality in the cited studies). For an
+   open-source framework contribution, an actual maintainer merge is the closest equivalent to that
+   backing — stronger than "325 tests green, ready for review." Landing PR #109 moves from one backlog
+   item among several to the precondition the rest of the pitch leans on.
+
 ## Week 4 repository decision
 
 The hackathon product gets **its own public repository**, with Moss as a dependency — not another
@@ -43,10 +68,9 @@ hackathon-period work instead of burying it under upstream history.
 
 | Priority | Item | Owner | Depends on |
 | --- | --- | --- | --- |
-| P0 | Land PR #109 so the adapter is an npm dependency | Dev | Maintainer review |
+| P0 | Land PR #109 — merged, not just review-ready; this is the precondition the pitch leans on | Dev | Maintainer approval |
 | P0 | Stand up the standalone product repo with Moss as a dependency | Dev | P0 above, or a temporary git dependency |
-| P0 | Trade desk UI: markets list, quote, confirm, simulation receipt | Frontend/Dev | Demo freeze feedback |
-| P1 | Render receipts as plain language — net in/out and approval granted | Dev | Trade desk UI |
+| P0 | Trade desk UI as an inspectable, steppable receipt trace: markets list, quote, confirm, then the ordered Change/event trace itself — not a one-line summary | Frontend/Dev | Demo freeze feedback |
 | P1 | Sell-PT path in the product surface | Dev | P0 |
 | P1 | Resolve the two open simulator items (caller funding, dust decode) | Dev | Upstream decision |
 | P2 | Portfolio summary across verified markets | Research/Ops | `markets` query |
@@ -64,6 +88,11 @@ hackathon-period work instead of burying it under upstream history.
 | Mentors | `[PLACEHOLDER]` |
 | Infra | Monad RPC, MCP hosting |
 | Skills gap | `[PLACEHOLDER]` |
+
+## Pitch opener (leads with the concrete hook)
+
+"One of the Pendle markets we're pointed at right now reports a ~644% APY. Our system won't let you
+sign for it without seeing that number first."
 
 ## 15-second pitch closer
 

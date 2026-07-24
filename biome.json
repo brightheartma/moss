@@ -12,7 +12,7 @@
       "!**/node_modules",
       "!**/.changeset",
       "!**/src/abis",
-      "!docs/week3-pendle-demo-studio/deck/**"
+      "!docs/week3-pendle-demo-studio/deck"
     ]
   },
   "formatter": {
